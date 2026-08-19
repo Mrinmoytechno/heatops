@@ -1,4 +1,5 @@
 import type { OperatingPlanItem } from "@/lib/operating-plan";
+
 import type {
   ScenarioChange,
   ScenarioInput,
@@ -19,7 +20,9 @@ function minutesToTime(totalMinutes: number): string {
   const hours = Math.floor(normalized / 60);
   const minutes = normalized % 60;
 
-  return `${hours.toString().padStart(2, "0")}:${minutes
+  return `${hours
+    .toString()
+    .padStart(2, "0")}:${minutes
     .toString()
     .padStart(2, "0")}`;
 }
@@ -44,9 +47,11 @@ function applyChange(
 ): OperatingPlanItem {
   const updatedItem: OperatingPlanItem = {
     ...item,
+
     currentSchedule: {
       ...item.currentSchedule,
     },
+
     recommendedSchedule: item.recommendedSchedule
       ? {
           ...item.recommendedSchedule,
@@ -68,6 +73,7 @@ function applyChange(
         start: minutesToTime(
           startMinutes - change.minutes,
         ),
+
         end: minutesToTime(
           endMinutes - change.minutes,
         ),
@@ -89,6 +95,7 @@ function applyChange(
         start: minutesToTime(
           startMinutes + change.minutes,
         ),
+
         end: minutesToTime(
           endMinutes + change.minutes,
         ),
@@ -117,7 +124,6 @@ function applyChange(
     }
 
     case "maintain":
-    default:
       break;
   }
 
@@ -176,8 +182,11 @@ function calculateOperationalDisruption(
         scenarioItem.currentSchedule.start,
       );
 
-      return total + Math.abs(
-        scenarioStart - originalStart,
+      return (
+        total +
+        Math.abs(
+          scenarioStart - originalStart,
+        )
       );
     },
     0,
@@ -196,7 +205,9 @@ function calculateComparison(
   );
 
   const exposureReduction = Number(
-    (baselineExposure - scenarioExposure).toFixed(1),
+    (
+      baselineExposure - scenarioExposure
+    ).toFixed(1),
   );
 
   return {
@@ -212,7 +223,8 @@ function calculateComparison(
       scenarioExposure.toFixed(1),
     ),
 
-    exposureReductionMinutes: exposureReduction,
+    exposureReductionMinutes:
+      exposureReduction,
 
     operationalDisruptionMinutes:
       disruptionMinutes,
@@ -222,8 +234,8 @@ function calculateComparison(
 export function runSimulation(
   input: ScenarioInput,
 ): ScenarioResult {
-  const scenarioItems = input.operatingPlan.items.map(
-    (item) => {
+  const scenarioItems =
+    input.operatingPlan.items.map((item) => {
       const change = input.changes.find(
         (candidate) =>
           candidate.operationId === item.operationId,
@@ -232,12 +244,22 @@ export function runSimulation(
       if (!change) {
         return {
           ...item,
+
+          currentSchedule: {
+            ...item.currentSchedule,
+          },
+
+          recommendedSchedule:
+            item.recommendedSchedule
+              ? {
+                  ...item.recommendedSchedule,
+                }
+              : null,
         };
       }
 
       return applyChange(item, change);
-    },
-  );
+    });
 
   const baselineRisk = calculateAverageRisk(
     input.operatingPlan.items,
@@ -253,7 +275,9 @@ export function runSimulation(
     );
 
   const scenarioExposure =
-    calculateExposureMinutes(scenarioItems);
+    calculateExposureMinutes(
+      scenarioItems,
+    );
 
   const disruptionMinutes =
     calculateOperationalDisruption(
@@ -283,4 +307,4 @@ export function runSimulation(
       disruptionMinutes,
     ),
   };
-  }
+     }
