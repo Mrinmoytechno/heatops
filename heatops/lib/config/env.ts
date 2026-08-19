@@ -33,12 +33,6 @@ const environmentSchema = z.object({
   .url()
   .optional()
   .or(z.literal("")),
-  
-  FORTYGUARD_API_BASE_URL: z
-    .string()
-    .url()
-    .optional()
-    .or(z.literal("")),
 
   FORTYGUARD_API_KEY: z
     .string()
@@ -111,9 +105,6 @@ export function getEnvironment() {
 
     FORTYGUARD_BASE_URL:
   process.env.FORTYGUARD_BASE_URL,
-
-    FORTYGUARD_API_BASE_URL:
-      process.env.FORTYGUARD_API_BASE_URL,
 
     FORTYGUARD_API_KEY:
       process.env.FORTYGUARD_API_KEY,
