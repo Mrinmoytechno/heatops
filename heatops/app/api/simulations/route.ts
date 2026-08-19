@@ -1,10 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
+
 import { z } from "zod";
 
-import { runSimulation } from "@/lib/simulation";
+import {
+  runSimulation,
+} from "@/lib/simulation";
+
+import {
+  generateSimulationNotification,
+} from "@/lib/notifications";
 
 const scheduleSchema = z.object({
   start: z.string().min(1),
+
   end: z.string().min(1),
 });
 
@@ -189,10 +200,35 @@ export async function POST(
       validatedInput,
     );
 
+    const notificationResult =
+      generateSimulationNotification({
+        siteId:
+          validatedInput.operatingPlan.siteId,
+
+        simulationId:
+          simulation.scenarioId,
+
+        name: simulation.name,
+
+        riskBefore:
+          simulation.comparison.baselineRisk,
+
+        riskAfter:
+          simulation.comparison.scenarioRisk,
+
+        modeledImpact: null,
+      });
+
     return NextResponse.json(
       {
         success: true,
-        data: simulation,
+
+        data: {
+          simulation,
+
+          notifications:
+            notificationResult,
+        },
       },
       {
         status: 200,
@@ -226,9 +262,4 @@ export async function POST(
 
         error: "SIMULATION_FAILED",
       },
-      {
-        status: 500,
-      },
-    );
-  }
-  }
+     
