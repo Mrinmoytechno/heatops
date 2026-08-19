@@ -76,7 +76,7 @@ export class FortyGuardThermalProvider
     _request: CurrentConditionsRequest
   ): Promise<ThermalConditions> {
     throw new Error(
-      "Current conditions are not part of the HeatOps Heatmap MVP."
+      "Current conditions are not yet supported by the FortyGuard provider."
     );
   }
 
@@ -84,7 +84,7 @@ export class FortyGuardThermalProvider
     _request: HeatmapRequest
   ): Promise<HeatmapResult> {
     throw new Error(
-      "Use getForecast for the HeatOps Heatmap workflow."
+      "Direct heatmap results are not yet exposed separately. Use getForecast for the current HeatOps thermal analysis workflow."
     );
   }
 
@@ -92,7 +92,7 @@ export class FortyGuardThermalProvider
     _request: EnvironmentalRequest
   ): Promise<EnvironmentalResult> {
     throw new Error(
-      "Environmental parameters will be added after the Heatmap MVP is verified."
+      "Environmental parameters are not yet implemented in the FortyGuard provider."
     );
   }
-        }
+}
