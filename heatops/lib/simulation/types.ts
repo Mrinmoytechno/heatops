@@ -3,6 +3,11 @@ import type {
   OperatingPlanItem,
 } from "@/lib/operating-plan";
 
+import type {
+  OperationAnalysisInput,
+  OperationAnalysisResult,
+} from "@/lib/analysis/analyze-operation";
+
 export type ScenarioChange =
   | {
       operationId: string;
@@ -29,13 +34,24 @@ export type ScenarioChange =
       type: "maintain";
     };
 
+export type SimulationOperationContext = {
+  operationId: string;
+
+  analysisInput: OperationAnalysisInput;
+
+  baselineAnalysis?: OperationAnalysisResult;
+};
+
 export type ScenarioInput = {
   name: string;
+
   description?: string | null;
 
   operatingPlan: HeatAdaptiveOperatingPlan;
 
   changes: ScenarioChange[];
+
+  operationContexts: SimulationOperationContext[];
 };
 
 export type SimulationComparison = {
@@ -50,17 +66,28 @@ export type SimulationComparison = {
   operationalDisruptionMinutes: number;
 };
 
+export type SimulatedOperationResult = {
+  item: OperatingPlanItem;
+
+  baselineAnalysis: OperationAnalysisResult | null;
+
+  scenarioAnalysis: OperationAnalysisResult | null;
+};
+
 export type ScenarioResult = {
   scenarioId: string;
 
   siteId: string;
 
   name: string;
+
   description: string | null;
 
   createdAt: string;
 
   items: OperatingPlanItem[];
+
+  operationResults: SimulatedOperationResult[];
 
   comparison: SimulationComparison;
 };
