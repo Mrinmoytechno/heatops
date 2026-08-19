@@ -8,73 +8,30 @@ import { z } from "zod";
 import {
   createManagerDecision,
   createOutcomeRecord,
+  saveManagerDecision,
+  saveOutcome,
 } from "@/lib/outcomes";
 
-const metricKeySchema = z
-  .string()
-  .min(1)
-  .max(100);
-
-const unitSchema = z
-  .string()
-  .min(1)
-  .max(50);
-
 const modeledMetricSchema = z.object({
-  key: metricKeySchema,
+  key: z.string().min(1).max(100),
 
-  label: z
-    .string()
-    .min(1)
-    .max(200),
+  label: z.string().min(1).max(200),
 
   value: z.number(),
 
-  unit: unitSchema,
+  unit: z.string().min(1).max(50),
 
   source: z.literal("modeled"),
 
   assumptions: z
     .array(
-      z
-        .string()
-        .min(1)
-        .max(500),
+      z.string().min(1).max(500),
     )
     .optional(),
 
   calculatedAt: z
     .string()
     .datetime(),
-});
-
-const actualMetricSchema = z.object({
-  key: metricKeySchema,
-
-  label: z
-    .string()
-    .min(1)
-    .max(200),
-
-  value: z.number(),
-
-  unit: unitSchema,
-
-  source: z.enum([
-    "observed",
-    "calculated",
-    "actual",
-  ]),
-
-  recordedAt: z
-    .string()
-    .datetime(),
-
-  notes: z
-    .string()
-    .max(1000)
-    .nullable()
-    .optional(),
 });
 
 const decisionSchema = z.object({
@@ -131,10 +88,6 @@ const requestSchema = z.object({
     .array(modeledMetricSchema)
     .optional(),
 
-  actualMetrics: z
-    .array(actualMetricSchema)
-    .optional(),
-
   status: z
     .enum([
       "pending",
@@ -155,10 +108,10 @@ export async function POST(
     const input =
       requestSchema.parse(body);
 
-    let decision = null;
+    let savedDecision = null;
 
     if (input.decision) {
-      decision =
+      const decision =
         createManagerDecision({
           siteId: input.siteId,
 
@@ -189,6 +142,11 @@ export async function POST(
           decidedAt:
             input.decision.decidedAt,
         });
+
+      savedDecision =
+        await saveManagerDecision(
+          decision,
+        );
     }
 
     const outcome =
@@ -204,26 +162,29 @@ export async function POST(
           null,
 
         decisionId:
-          decision?.id ?? null,
+          savedDecision?.id ?? null,
 
         modeledMetrics:
           input.modeledMetrics ?? [],
-
-        actualMetrics:
-          input.actualMetrics ?? [],
 
         status:
           input.status ??
           "pending",
       });
 
+    const savedOutcome =
+      await saveOutcome(outcome);
+
     return NextResponse.json(
       {
         success: true,
 
         data: {
-          decision,
-          outcome,
+          decision:
+            savedDecision,
+
+          outcome:
+            savedOutcome,
         },
       },
       {
@@ -265,4 +226,4 @@ export async function POST(
       },
     );
   }
-    }
+      }
