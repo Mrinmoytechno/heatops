@@ -58,6 +58,68 @@ const requestSchema = z.object({
     .optional(),
 });
 
+export async function GET(
+  _request: NextRequest,
+  context: {
+    params: Promise<{
+      outcomeId: string;
+    }>;
+  },
+) {
+  try {
+    const { outcomeId } =
+      await context.params;
+
+    const outcome =
+      await getOutcomeById(
+        outcomeId,
+      );
+
+    if (!outcome) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          error:
+            "OUTCOME_NOT_FOUND",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+
+        data: {
+          outcome,
+        },
+      },
+      {
+        status: 200,
+      },
+    );
+  } catch (error) {
+    console.error(
+      "Failed to fetch outcome:",
+      error,
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+
+        error:
+          "OUTCOME_FETCH_FAILED",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
+          }
 export async function PATCH(
   request: NextRequest,
   context: {
