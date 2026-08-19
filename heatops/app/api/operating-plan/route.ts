@@ -1,7 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
+
 import { z } from "zod";
 
-import { createOperatingPlan } from "@/lib/operating-plan";
+import {
+  createOperatingPlan,
+} from "@/lib/operating-plan";
+
+import {
+  generateOperatingPlanNotifications,
+} from "@/lib/notifications";
 
 const decisionSchema = z.object({
   risk: z.object({
@@ -10,10 +20,13 @@ const decisionSchema = z.object({
 
   recommendation: z.object({
     action: z.string(),
+
     reason: z.string(),
+
     schedule: z
       .object({
         start: z.string(),
+
         end: z.string(),
       })
       .nullable()
@@ -30,11 +43,16 @@ const decisionSchema = z.object({
 
 const operationSchema = z.object({
   operationId: z.string().uuid(),
+
   operationName: z.string().min(1),
 
-  zoneName: z.string().nullable().optional(),
+  zoneName: z
+    .string()
+    .nullable()
+    .optional(),
 
   scheduledStart: z.string().min(1),
+
   scheduledEnd: z.string().min(1),
 
   decision: decisionSchema,
@@ -42,22 +60,54 @@ const operationSchema = z.object({
 
 const requestSchema = z.object({
   siteId: z.string().uuid(),
+
   analysisTime: z.string().datetime(),
-  operations: z.array(operationSchema).min(1),
+
+  operations: z
+    .array(operationSchema)
+    .min(1),
 });
 
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest,
+) {
   try {
     const body = await request.json();
 
-    const validatedInput = requestSchema.parse(body);
+    const validatedInput =
+      requestSchema.parse(body);
 
-    const operatingPlan = createOperatingPlan(validatedInput);
+    const operatingPlan =
+      createOperatingPlan(
+        validatedInput,
+      );
+
+    const notificationResult =
+      generateOperatingPlanNotifications({
+        siteId: operatingPlan.siteId,
+
+        actionsRequired:
+          operatingPlan.actionsRequired,
+
+        recommendations:
+          operatingPlan.recommendations,
+
+        monitoringItems:
+          operatingPlan.monitoringItems,
+
+        title: operatingPlan.title,
+      });
 
     return NextResponse.json(
       {
         success: true,
-        data: operatingPlan,
+
+        data: {
+          operatingPlan,
+
+          notifications:
+            notificationResult,
+        },
       },
       {
         status: 200,
@@ -68,7 +118,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "INVALID_OPERATING_PLAN_INPUT",
+
+          error:
+            "INVALID_OPERATING_PLAN_INPUT",
+
           details: error.flatten(),
         },
         {
@@ -77,16 +130,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error("Failed to create operating plan:", error);
+    console.error(
+      "Failed to create operating plan:",
+      error,
+    );
 
     return NextResponse.json(
       {
         success: false,
-        error: "OPERATING_PLAN_GENERATION_FAILED",
+
+        error:
+          "OPERATING_PLAN_GENERATION_FAILED",
       },
       {
         status: 500,
       },
     );
   }
-}
+  }
