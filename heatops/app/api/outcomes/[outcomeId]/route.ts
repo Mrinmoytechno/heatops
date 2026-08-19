@@ -6,27 +6,19 @@ import {
 import { z } from "zod";
 
 import {
-  OutcomeRecord,
+  getOutcomeById,
   recordActualOutcome,
+  updateOutcome,
 } from "@/lib/outcomes";
 
 const metricSchema = z.object({
-  key: z
-    .string()
-    .min(1)
-    .max(100),
+  key: z.string().min(1).max(100),
 
-  label: z
-    .string()
-    .min(1)
-    .max(200),
+  label: z.string().min(1).max(200),
 
   value: z.number(),
 
-  unit: z
-    .string()
-    .min(1)
-    .max(50),
+  unit: z.string().min(1).max(50),
 
   source: z.enum([
     "observed",
@@ -45,98 +37,7 @@ const metricSchema = z.object({
     .optional(),
 });
 
-const outcomeSchema = z.object({
-  id: z.string().uuid(),
-
-  siteId: z.string().uuid(),
-
-  recommendationId: z
-    .string()
-    .uuid()
-    .nullable(),
-
-  operationId: z
-    .string()
-    .uuid()
-    .nullable(),
-
-  decisionId: z
-    .string()
-    .uuid()
-    .nullable(),
-
-  status: z.enum([
-    "pending",
-    "in_progress",
-    "completed",
-    "unavailable",
-  ]),
-
-  modeledMetrics: z.array(
-    z.object({
-      key: z.string(),
-
-      label: z.string(),
-
-      value: z.number(),
-
-      unit: z.string(),
-
-      source: z.literal("modeled"),
-
-      assumptions: z
-        .array(z.string())
-        .optional(),
-
-      calculatedAt: z
-        .string()
-        .datetime(),
-    }),
-  ),
-
-  actualMetrics: z.array(
-    metricSchema,
-  ),
-
-  comparisons: z.array(
-    z.object({
-      key: z.string(),
-
-      label: z.string(),
-
-      unit: z.string(),
-
-      modeledValue:
-        z.number().nullable(),
-
-      actualValue:
-        z.number().nullable(),
-
-      difference:
-        z.number().nullable(),
-
-      differencePercent:
-        z.number().nullable(),
-    }),
-  ),
-
-  createdAt: z
-    .string()
-    .datetime(),
-
-  updatedAt: z
-    .string()
-    .datetime(),
-
-  completedAt: z
-    .string()
-    .datetime()
-    .nullable(),
-});
-
 const requestSchema = z.object({
-  outcome: outcomeSchema,
-
   metrics: z
     .array(metricSchema)
     .min(1),
@@ -175,26 +76,28 @@ export async function PATCH(
     const input =
       requestSchema.parse(body);
 
-    if (
-      input.outcome.id !==
-      outcomeId
-    ) {
+    const existingOutcome =
+      await getOutcomeById(
+        outcomeId,
+      );
+
+    if (!existingOutcome) {
       return NextResponse.json(
         {
           success: false,
 
           error:
-            "OUTCOME_ID_MISMATCH",
+            "OUTCOME_NOT_FOUND",
         },
         {
-          status: 400,
+          status: 404,
         },
       );
     }
 
     const updatedOutcome =
       recordActualOutcome(
-        input.outcome as OutcomeRecord,
+        existingOutcome,
         {
           outcomeId,
 
@@ -209,13 +112,18 @@ export async function PATCH(
         },
       );
 
+    const savedOutcome =
+      await updateOutcome(
+        updatedOutcome,
+      );
+
     return NextResponse.json(
       {
         success: true,
 
         data: {
           outcome:
-            updatedOutcome,
+            savedOutcome,
         },
       },
       {
@@ -275,4 +183,4 @@ export async function PATCH(
       },
     );
   }
-  }
+          }
