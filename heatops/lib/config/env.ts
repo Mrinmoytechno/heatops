@@ -28,6 +28,12 @@ const environmentSchema = z.object({
     "fortyguard",
   ]),
 
+  FORTYGUARD_BASE_URL: z
+  .string()
+  .url()
+  .optional()
+  .or(z.literal("")),
+  
   FORTYGUARD_API_BASE_URL: z
     .string()
     .url()
@@ -102,6 +108,9 @@ export function getEnvironment() {
     THERMAL_PROVIDER:
       process.env.THERMAL_PROVIDER ??
       "development",
+
+    FORTYGUARD_BASE_URL:
+  process.env.FORTYGUARD_BASE_URL,
 
     FORTYGUARD_API_BASE_URL:
       process.env.FORTYGUARD_API_BASE_URL,
