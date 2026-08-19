@@ -1,33 +1,48 @@
 import { z } from "zod";
 
-export const ThermalObservationSchema = z.object({
-  timestamp: z.string().datetime(),
+export const ThermalObservationSchema =
+  z.object({
+    timestamp: z.string().datetime(),
 
-    latitude: z.number().min(-90).max(90),
+    latitude: z
+      .number()
+      .min(-90)
+      .max(90),
 
-      longitude: z.number().min(-180).max(180),
+    longitude: z
+      .number()
+      .min(-180)
+      .max(180),
 
-        temperatureC: z.number(),
+    temperatureC: z.number().finite(),
 
-          source: z.string().min(1),
-          });
+    source: z
+      .string()
+      .min(1),
+  });
 
-          export type ThermalObservation = z.infer<
-            typeof ThermalObservationSchema
-            >;
+export type ThermalObservation =
+  z.infer<
+    typeof ThermalObservationSchema
+  >;
 
-            export const ThermalForecastSchema = z.object({
-              siteId: z.string().uuid(),
+export const ThermalForecastSchema =
+  z.object({
+    siteId: z.string().uuid(),
 
-                observations: z.array(
-                    ThermalObservationSchema
-                      ),
+    observations: z.array(
+      ThermalObservationSchema
+    ),
 
-                        generatedAt: z.string().datetime(),
+    generatedAt:
+      z.string().datetime(),
 
-                          provider: z.string().min(1),
-                          });
+    provider: z
+      .string()
+      .min(1),
+  });
 
-                          export type ThermalForecast = z.infer<
-                            typeof ThermalForecastSchema
-                            >;
+export type ThermalForecast =
+  z.infer<
+    typeof ThermalForecastSchema
+  >;
