@@ -2,23 +2,29 @@ import { z } from "zod";
 
 export const ThermalObservationSchema =
   z.object({
-    timestamp: z.string().datetime(),
+    timestamp:
+      z.string().datetime(),
 
-    latitude: z
-      .number()
-      .min(-90)
-      .max(90),
+    latitude:
+      z.number().min(-90).max(90),
 
-    longitude: z
-      .number()
-      .min(-180)
-      .max(180),
+    longitude:
+      z.number().min(-180).max(180),
 
-    temperatureC: z.number().finite(),
+    temperatureC:
+      z.number().finite(),
 
-    source: z
-      .string()
-      .min(1),
+    source:
+      z.string().min(1),
+
+    tileId:
+      z.string().optional(),
+
+    minTemperatureC:
+      z.number().finite().optional(),
+
+    maxTemperatureC:
+      z.number().finite().optional(),
   });
 
 export type ThermalObservation =
@@ -28,18 +34,19 @@ export type ThermalObservation =
 
 export const ThermalForecastSchema =
   z.object({
-    siteId: z.string().uuid(),
+    siteId:
+      z.string().uuid(),
 
-    observations: z.array(
-      ThermalObservationSchema
-    ),
+    observations:
+      z.array(
+        ThermalObservationSchema
+      ),
 
     generatedAt:
       z.string().datetime(),
 
-    provider: z
-      .string()
-      .min(1),
+    provider:
+      z.string().min(1),
   });
 
 export type ThermalForecast =
