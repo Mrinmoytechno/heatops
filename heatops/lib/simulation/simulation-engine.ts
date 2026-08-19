@@ -1,24 +1,48 @@
-import type { OperatingPlanItem } from "@/lib/operating-plan";
+import {
+  analyzeOperation,
+} from "@/lib/analysis/analyze-operation";
+
+import type {
+  OperationAnalysisInput,
+  OperationAnalysisResult,
+} from "@/lib/analysis/analyze-operation";
+
+import type {
+  OperatingPlanItem,
+} from "@/lib/operating-plan";
 
 import type {
   ScenarioChange,
   ScenarioInput,
   ScenarioResult,
+  SimulatedOperationResult,
   SimulationComparison,
+  SimulationOperationContext,
 } from "./types";
 
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
+function timeToMinutes(
+  time: string,
+): number {
+  const [hours, minutes] = time
+    .split(":")
+    .map(Number);
 
   return hours * 60 + minutes;
 }
 
-function minutesToTime(totalMinutes: number): string {
+function minutesToTime(
+  totalMinutes: number,
+): string {
   const normalized =
-    ((totalMinutes % 1440) + 1440) % 1440;
+    ((totalMinutes % 1440) + 1440) %
+    1440;
 
-  const hours = Math.floor(normalized / 60);
-  const minutes = normalized % 60;
+  const hours = Math.floor(
+    normalized / 60,
+  );
+
+  const minutes =
+    normalized % 60;
 
   return `${hours
     .toString()
@@ -31,51 +55,73 @@ function getDurationMinutes(
   start: string,
   end: string,
 ): number {
-  const startMinutes = timeToMinutes(start);
-  const endMinutes = timeToMinutes(end);
+  const startMinutes =
+    timeToMinutes(start);
+
+  const endMinutes =
+    timeToMinutes(end);
 
   if (endMinutes >= startMinutes) {
-    return endMinutes - startMinutes;
+    return (
+      endMinutes -
+      startMinutes
+    );
   }
 
-  return 1440 - startMinutes + endMinutes;
+  return (
+    1440 -
+    startMinutes +
+    endMinutes
+  );
 }
 
-function applyChange(
+function cloneOperatingPlanItem(
   item: OperatingPlanItem,
-  change: ScenarioChange,
 ): OperatingPlanItem {
-  const updatedItem: OperatingPlanItem = {
+  return {
     ...item,
 
     currentSchedule: {
       ...item.currentSchedule,
     },
 
-    recommendedSchedule: item.recommendedSchedule
-      ? {
-          ...item.recommendedSchedule,
-        }
-      : null,
+    recommendedSchedule:
+      item.recommendedSchedule
+        ? {
+            ...item.recommendedSchedule,
+          }
+        : null,
   };
+}
+
+function applyChange(
+  item: OperatingPlanItem,
+  change: ScenarioChange,
+): OperatingPlanItem {
+  const updatedItem =
+    cloneOperatingPlanItem(item);
 
   switch (change.type) {
     case "move_earlier": {
-      const startMinutes = timeToMinutes(
-        item.currentSchedule.start,
-      );
+      const startMinutes =
+        timeToMinutes(
+          item.currentSchedule.start,
+        );
 
-      const endMinutes = timeToMinutes(
-        item.currentSchedule.end,
-      );
+      const endMinutes =
+        timeToMinutes(
+          item.currentSchedule.end,
+        );
 
       updatedItem.currentSchedule = {
         start: minutesToTime(
-          startMinutes - change.minutes,
+          startMinutes -
+            change.minutes,
         ),
 
         end: minutesToTime(
-          endMinutes - change.minutes,
+          endMinutes -
+            change.minutes,
         ),
       };
 
@@ -83,21 +129,25 @@ function applyChange(
     }
 
     case "move_later": {
-      const startMinutes = timeToMinutes(
-        item.currentSchedule.start,
-      );
+      const startMinutes =
+        timeToMinutes(
+          item.currentSchedule.start,
+        );
 
-      const endMinutes = timeToMinutes(
-        item.currentSchedule.end,
-      );
+      const endMinutes =
+        timeToMinutes(
+          item.currentSchedule.end,
+        );
 
       updatedItem.currentSchedule = {
         start: minutesToTime(
-          startMinutes + change.minutes,
+          startMinutes +
+            change.minutes,
         ),
 
         end: minutesToTime(
-          endMinutes + change.minutes,
+          endMinutes +
+            change.minutes,
         ),
       };
 
@@ -107,6 +157,7 @@ function applyChange(
     case "set_schedule": {
       updatedItem.currentSchedule = {
         start: change.start,
+
         end: change.end,
       };
 
@@ -130,19 +181,87 @@ function applyChange(
   return updatedItem;
 }
 
+function applyScheduleToAnalysisInput(
+  input: OperationAnalysisInput,
+  item: OperatingPlanItem,
+): OperationAnalysisInput {
+  return {
+    ...input,
+
+    operation: {
+      ...input.operation,
+
+      scheduledStart:
+        item.currentSchedule.start,
+
+      scheduledEnd:
+        item.currentSchedule.end,
+    },
+  };
+}
+
+function createScenarioItem(
+  originalItem: OperatingPlanItem,
+  scenarioAnalysis: OperationAnalysisResult,
+): OperatingPlanItem {
+  const scenarioRisk =
+    scenarioAnalysis.risk.score;
+
+  return {
+    ...cloneOperatingPlanItem(
+      originalItem,
+    ),
+
+    currentSchedule: {
+      ...originalItem.currentSchedule,
+    },
+
+    decision:
+      scenarioAnalysis.decision,
+
+    riskBefore:
+      scenarioRisk,
+
+    projectedRiskAfter:
+      scenarioAnalysis.decision
+        .projectedRisk
+        ?.score ?? null,
+
+    reason:
+      scenarioAnalysis
+        .decision
+        .recommendation
+        .reason,
+
+    summary:
+      scenarioAnalysis
+        .decision
+        .recommendation
+        .reason,
+  };
+}
+
 function calculateExposureMinutes(
   items: OperatingPlanItem[],
 ): number {
-  return items.reduce((total, item) => {
-    const duration = getDurationMinutes(
-      item.currentSchedule.start,
-      item.currentSchedule.end,
-    );
+  return items.reduce(
+    (total, item) => {
+      const duration =
+        getDurationMinutes(
+          item.currentSchedule.start,
+          item.currentSchedule.end,
+        );
 
-    const riskWeight = item.riskBefore / 100;
+      const riskWeight =
+        item.riskBefore / 100;
 
-    return total + duration * riskWeight;
-  }, 0);
+      return (
+        total +
+        duration * riskWeight
+      );
+    },
+    0,
+  );
 }
 
 function calculateAverageRisk(
@@ -152,13 +271,19 @@ function calculateAverageRisk(
     return 0;
   }
 
-  const totalRisk = items.reduce(
-    (total, item) => total + item.riskBefore,
-    0,
-  );
+  const totalRisk =
+    items.reduce(
+      (total, item) =>
+        total +
+        item.riskBefore,
+      0,
+    );
 
   return Number(
-    (totalRisk / items.length).toFixed(1),
+    (
+      totalRisk /
+      items.length
+    ).toFixed(1),
   );
 }
 
@@ -167,25 +292,33 @@ function calculateOperationalDisruption(
   scenarioItems: OperatingPlanItem[],
 ): number {
   return scenarioItems.reduce(
-    (total, scenarioItem, index) => {
-      const originalItem = originalItems[index];
+    (total, scenarioItem) => {
+      const originalItem =
+        originalItems.find(
+          (item) =>
+            item.operationId ===
+            scenarioItem.operationId,
+        );
 
       if (!originalItem) {
         return total;
       }
 
-      const originalStart = timeToMinutes(
-        originalItem.currentSchedule.start,
-      );
+      const originalStart =
+        timeToMinutes(
+          originalItem.currentSchedule.start,
+        );
 
-      const scenarioStart = timeToMinutes(
-        scenarioItem.currentSchedule.start,
-      );
+      const scenarioStart =
+        timeToMinutes(
+          scenarioItem.currentSchedule.start,
+        );
 
       return (
         total +
         Math.abs(
-          scenarioStart - originalStart,
+          scenarioStart -
+            originalStart,
         )
       );
     },
@@ -200,74 +333,157 @@ function calculateComparison(
   scenarioExposure: number,
   disruptionMinutes: number,
 ): SimulationComparison {
-  const riskReduction = Number(
-    (baselineRisk - scenarioRisk).toFixed(1),
-  );
-
-  const exposureReduction = Number(
-    (
-      baselineExposure - scenarioExposure
-    ).toFixed(1),
-  );
-
   return {
-    baselineRisk,
-    scenarioRisk,
-    riskReduction,
+    baselineRisk:
+      Number(
+        baselineRisk.toFixed(1),
+      ),
 
-    baselineExposureMinutes: Number(
-      baselineExposure.toFixed(1),
-    ),
+    scenarioRisk:
+      Number(
+        scenarioRisk.toFixed(1),
+      ),
 
-    scenarioExposureMinutes: Number(
-      scenarioExposure.toFixed(1),
-    ),
+    riskReduction:
+      Number(
+        (
+          baselineRisk -
+          scenarioRisk
+        ).toFixed(1),
+      ),
+
+    baselineExposureMinutes:
+      Number(
+        baselineExposure.toFixed(1),
+      ),
+
+    scenarioExposureMinutes:
+      Number(
+        scenarioExposure.toFixed(1),
+      ),
 
     exposureReductionMinutes:
-      exposureReduction,
+      Number(
+        (
+          baselineExposure -
+          scenarioExposure
+        ).toFixed(1),
+      ),
 
     operationalDisruptionMinutes:
       disruptionMinutes,
   };
 }
 
-export function runSimulation(
+function getOperationContext(
+  contexts: SimulationOperationContext[],
+  operationId: string,
+): SimulationOperationContext | null {
+  return (
+    contexts.find(
+      (context) =>
+        context.operationId ===
+        operationId,
+    ) ?? null
+  );
+}
+
+async function getBaselineAnalysis(
+  context: SimulationOperationContext,
+): Promise<OperationAnalysisResult> {
+  if (context.baselineAnalysis) {
+    return context.baselineAnalysis;
+  }
+
+  return analyzeOperation(
+    context.analysisInput,
+  );
+}
+
+export async function runSimulation(
   input: ScenarioInput,
-): ScenarioResult {
-  const scenarioItems =
-    input.operatingPlan.items.map((item) => {
-      const change = input.changes.find(
-        (candidate) =>
-          candidate.operationId === item.operationId,
+): Promise<ScenarioResult> {
+  const operationResults:
+    SimulatedOperationResult[] = [];
+
+  for (
+    const originalItem of input
+      .operatingPlan.items
+  ) {
+    const context =
+      getOperationContext(
+        input.operationContexts,
+        originalItem.operationId,
       );
 
-      if (!change) {
-        return {
-          ...item,
+    if (!context) {
+      throw new Error(
+        `Missing simulation context for operation ${originalItem.operationId}.`,
+      );
+    }
 
-          currentSchedule: {
-            ...item.currentSchedule,
-          },
+    const change =
+      input.changes.find(
+        (candidate) =>
+          candidate.operationId ===
+          originalItem.operationId,
+      );
 
-          recommendedSchedule:
-            item.recommendedSchedule
-              ? {
-                  ...item.recommendedSchedule,
-                }
-              : null,
-        };
-      }
+    const scenarioItem =
+      change
+        ? applyChange(
+            originalItem,
+            change,
+          )
+        : cloneOperatingPlanItem(
+            originalItem,
+          );
 
-      return applyChange(item, change);
+    const baselineAnalysis =
+      await getBaselineAnalysis(
+        context,
+      );
+
+    const scenarioInput =
+      applyScheduleToAnalysisInput(
+        context.analysisInput,
+        scenarioItem,
+      );
+
+    const scenarioAnalysis =
+      await analyzeOperation(
+        scenarioInput,
+      );
+
+    const analyzedScenarioItem =
+      createScenarioItem(
+        scenarioItem,
+        scenarioAnalysis,
+      );
+
+    operationResults.push({
+      item: analyzedScenarioItem,
+
+      baselineAnalysis,
+
+      scenarioAnalysis,
     });
+  }
 
-  const baselineRisk = calculateAverageRisk(
-    input.operatingPlan.items,
-  );
+  const scenarioItems =
+    operationResults.map(
+      (result) => result.item,
+    );
 
-  const scenarioRisk = calculateAverageRisk(
-    scenarioItems,
-  );
+  const baselineRisk =
+    calculateAverageRisk(
+      input.operatingPlan.items,
+    );
+
+  const scenarioRisk =
+    calculateAverageRisk(
+      scenarioItems,
+    );
 
   const baselineExposure =
     calculateExposureMinutes(
@@ -286,25 +502,31 @@ export function runSimulation(
     );
 
   return {
-    scenarioId: crypto.randomUUID(),
+    scenarioId:
+      crypto.randomUUID(),
 
-    siteId: input.operatingPlan.siteId,
+    siteId:
+      input.operatingPlan.siteId,
 
     name: input.name,
 
     description:
       input.description ?? null,
 
-    createdAt: new Date().toISOString(),
+    createdAt:
+      new Date().toISOString(),
 
     items: scenarioItems,
 
-    comparison: calculateComparison(
-      baselineRisk,
-      scenarioRisk,
-      baselineExposure,
-      scenarioExposure,
-      disruptionMinutes,
-    ),
+    operationResults,
+
+    comparison:
+      calculateComparison(
+        baselineRisk,
+        scenarioRisk,
+        baselineExposure,
+        scenarioExposure,
+        disruptionMinutes,
+      ),
   };
-     }
+}
