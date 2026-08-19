@@ -171,4 +171,4 @@ export function createOperatingPlan(
 
     generatedAt: new Date().toISOString(),
   };
-        }
+
