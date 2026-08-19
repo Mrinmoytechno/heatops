@@ -19,56 +19,61 @@ export async function waitForFortyGuardResult(
 
   const interval =
     environment.FORTYGUARD_POLL_INTERVAL_MS ??
-    5000;
+    3000;
 
   const maxAttempts =
     environment.FORTYGUARD_MAX_POLL_ATTEMPTS ??
-    24;
+    200;
 
   for (
     let attempt = 0;
     attempt < maxAttempts;
     attempt++
   ) {
-    const response =
+    const status =
       await client.getStatus(
         activityId
       );
 
-    const status =
-      response.data?.status
-        ?.toLowerCase();
+    const normalizedStatus =
+      String(
+        status.status ?? ""
+      ).toLowerCase();
 
     if (
-      status === "completed" ||
-      status === "succeeded"
+      normalizedStatus ===
+        "completed" ||
+      normalizedStatus ===
+        "succeeded"
     ) {
       if (
-        response.data?.result ===
+        status.result ===
         undefined
       ) {
         throw new FortyGuardApiError({
           message:
-            "FortyGuard marked the activity completed but returned no result.",
+            "FortyGuard completed the activity but returned no result.",
           code:
             "FORTYGUARD_EMPTY_RESULT",
-          details: response,
+          details: status,
         });
       }
 
-      return response.data.result;
+      return status.result;
     }
 
     if (
-      status === "failed" ||
-      status === "error"
+      normalizedStatus ===
+        "failed" ||
+      normalizedStatus ===
+        "error"
     ) {
       throw new FortyGuardApiError({
         message:
           "FortyGuard thermal analysis failed.",
         code:
           "FORTYGUARD_JOB_FAILED",
-        details: response,
+        details: status,
       });
     }
 
@@ -83,7 +88,7 @@ export async function waitForFortyGuardResult(
 
   throw new FortyGuardApiError({
     message:
-      "FortyGuard thermal analysis timed out while waiting for completion.",
+      "FortyGuard thermal analysis timed out.",
     code:
       "FORTYGUARD_JOB_TIMEOUT",
     details: {
