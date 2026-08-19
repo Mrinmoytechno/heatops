@@ -293,3 +293,50 @@ export async function updateOutcome(
     data as OutcomeRow,
   );
     }
+export async function getOutcomesBySiteId(
+  siteId: string,
+): Promise<OutcomeRecord[]> {
+  const supabase =
+    await createClient();
+
+  const { data, error } =
+    await supabase
+      .from("outcomes")
+      .select("*")
+      .eq("site_id", siteId)
+      .order("created_at", {
+        ascending: false,
+      });
+
+  if (error) {
+    throw error;
+  }
+
+  return (
+    (data ?? []) as OutcomeRow[]
+  ).map(mapOutcomeRow);
+}
+
+export async function getOutcomesByDecisionId(
+  decisionId: string,
+): Promise<OutcomeRecord[]> {
+  const supabase =
+    await createClient();
+
+  const { data, error } =
+    await supabase
+      .from("outcomes")
+      .select("*")
+      .eq("decision_id", decisionId)
+      .order("created_at", {
+        ascending: false,
+      });
+
+  if (error) {
+    throw error;
+  }
+
+  return (
+    (data ?? []) as OutcomeRow[]
+  ).map(mapOutcomeRow);
+    }
