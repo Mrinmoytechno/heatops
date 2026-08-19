@@ -6,6 +6,10 @@ import {
   DevelopmentThermalProvider,
 } from "./providers/development";
 
+import {
+  FortyGuardThermalProvider,
+} from "./providers/fortyguard";
+
 export function getThermalProvider():
   ThermalDataProvider {
   const provider =
@@ -18,9 +22,7 @@ export function getThermalProvider():
       return new DevelopmentThermalProvider();
 
     case "fortyguard":
-      throw new Error(
-        "FortyGuard provider is not configured yet."
-      );
+      return new FortyGuardThermalProvider();
 
     default:
       throw new Error(
