@@ -2,19 +2,29 @@ import type {
   ForecastRequest,
 } from "./requests";
 
-function toFortyGuardDateTime(
+function getDateParts(
   value: string
 ) {
   const date =
     new Date(value);
 
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    throw new Error(
+      `Invalid date: ${value}`
+    );
+  }
+
   return {
-    start_date:
+    date:
       date
         .toISOString()
         .slice(0, 10),
 
-    start_time:
+    time:
       date
         .toISOString()
         .slice(11, 16),
@@ -25,12 +35,12 @@ export function buildHeatmapPayload(
   request: ForecastRequest
 ) {
   const start =
-    toFortyGuardDateTime(
+    getDateParts(
       request.startTime
     );
 
   const end =
-    toFortyGuardDateTime(
+    getDateParts(
       request.endTime
     );
 
@@ -40,13 +50,13 @@ export function buildHeatmapPayload(
 
     date_time: {
       start_date:
-        start.start_date,
+        start.date,
 
       start_time:
-        start.start_time,
+        start.time,
 
       end_time:
-        end.start_time,
+        end.time,
 
       filter_type: 2,
     },
@@ -55,4 +65,4 @@ export function buildHeatmapPayload(
 
     analytic_type: "tcm",
   };
-}
+      }
