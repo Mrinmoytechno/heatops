@@ -8,6 +8,8 @@ import { z } from "zod";
 import {
   createManagerDecision,
   createOutcomeRecord,
+  getOutcomesByDecisionId,
+  getOutcomesBySiteId,
   saveManagerDecision,
   saveOutcome,
 } from "@/lib/outcomes";
@@ -227,3 +229,185 @@ export async function POST(
     );
   }
       }
+export async function GET(
+  request: NextRequest,
+) {
+  try {
+    const searchParams =
+      request.nextUrl.searchParams;
+
+    const siteId =
+      searchParams.get("siteId");
+
+    const decisionId =
+      searchParams.get("decisionId");
+
+    if (!siteId && !decisionId) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          error:
+            "SITE_ID_OR_DECISION_ID_REQUIRED",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (siteId && decisionId) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          error:
+            "USE_ONE_FILTER_ONLY",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (siteId) {
+      const outcomes =
+        await getOutcomesBySiteId(
+          siteId,
+        );
+
+      return NextResponse.json(
+        {
+          success: true,
+
+          data: {
+            outcomes,
+          },
+        },
+      );
+    }
+
+    const outcomes =
+      await getOutcomesByDecisionId(
+        decisionId as string,
+      );
+
+    return NextResponse.json(
+      {
+        success: true,
+
+        data: {
+          outcomes,
+        },
+      },
+    );
+  } catch (error) {
+    console.error(
+      "Failed to fetch outcomes:",
+      error,
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+
+        error:
+          "OUTCOME_FETCH_FAILED",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
+}
+export async function GET(
+  request: NextRequest,
+) {
+  try {
+    const searchParams =
+      request.nextUrl.searchParams;
+
+    const siteId =
+      searchParams.get("siteId");
+
+    const decisionId =
+      searchParams.get("decisionId");
+
+    if (!siteId && !decisionId) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          error:
+            "SITE_ID_OR_DECISION_ID_REQUIRED",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (siteId && decisionId) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          error:
+            "USE_ONE_FILTER_ONLY",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (siteId) {
+      const outcomes =
+        await getOutcomesBySiteId(
+          siteId,
+        );
+
+      return NextResponse.json(
+        {
+          success: true,
+
+          data: {
+            outcomes,
+          },
+        },
+      );
+    }
+
+    const outcomes =
+      await getOutcomesByDecisionId(
+        decisionId as string,
+      );
+
+    return NextResponse.json(
+      {
+        success: true,
+
+        data: {
+          outcomes,
+        },
+      },
+    );
+  } catch (error) {
+    console.error(
+      "Failed to fetch outcomes:",
+      error,
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+
+        error:
+          "OUTCOME_FETCH_FAILED",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
+        }
