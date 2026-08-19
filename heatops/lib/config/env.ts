@@ -2,122 +2,138 @@ import { z } from "zod";
 
 const environmentSchema = z.object({
   NEXT_PUBLIC_APP_URL: z
-      .string()
-          .url()
-              .optional()
-                  .or(z.literal("")),
+    .string()
+    .url()
+    .optional()
+    .or(z.literal("")),
 
-                    NEXT_PUBLIC_SUPABASE_URL: z
-                        .string()
-                            .url()
-                                .optional()
-                                    .or(z.literal("")),
+  NEXT_PUBLIC_SUPABASE_URL: z
+    .string()
+    .url()
+    .optional()
+    .or(z.literal("")),
 
-                                      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z
-                                          .string()
-                                              .optional()
-                                                  .or(z.literal("")),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z
+    .string()
+    .optional()
+    .or(z.literal("")),
 
-                                                    SUPABASE_SERVICE_ROLE_KEY: z
-                                                        .string()
-                                                            .optional()
-                                                                .or(z.literal("")),
+  SUPABASE_SERVICE_ROLE_KEY: z
+    .string()
+    .optional()
+    .or(z.literal("")),
 
-                                                                  THERMAL_PROVIDER: z.enum([
-                                                                      "development",
-                                                                          "fortyguard",
-                                                                            ]),
+  THERMAL_PROVIDER: z.enum([
+    "development",
+    "fortyguard",
+  ]),
 
-                                                                              FORTYGUARD_API_BASE_URL: z
-                                                                                  .string()
-                                                                                      .url()
-                                                                                          .optional()
-                                                                                              .or(z.literal("")),
+  FORTYGUARD_API_BASE_URL: z
+    .string()
+    .url()
+    .optional()
+    .or(z.literal("")),
 
-                                                                                                FORTYGUARD_API_KEY: z
-                                                                                                    .string()
-                                                                                                        .optional()
-                                                                                                            .or(z.literal("")),
+  FORTYGUARD_API_KEY: z
+    .string()
+    .optional()
+    .or(z.literal("")),
 
-                                                                                                              HEATOPS_REFERENCE_TEMPERATURE_F: z
-                                                                                                                  .coerce
-                                                                                                                      .number()
-                                                                                                                          .optional(),
+  FORTYGUARD_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .default(5000),
 
-                                                                                                                            HEATOPS_ELEVATED_TEMPERATURE_F: z
-                                                                                                                                .coerce
-                                                                                                                                    .number()
-                                                                                                                                        .optional(),
+  FORTYGUARD_MAX_POLL_ATTEMPTS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .default(24),
 
-                                                                                                                                          HEATOPS_HIGH_TEMPERATURE_F: z
-                                                                                                                                              .coerce
-                                                                                                                                                  .number()
-                                                                                                                                                      .optional(),
+  HEATOPS_REFERENCE_TEMPERATURE_F: z.coerce
+    .number()
+    .optional(),
 
-                                                                                                                                                        HEATOPS_CRITICAL_TEMPERATURE_F: z
-                                                                                                                                                            .coerce
-                                                                                                                                                                .number()
-                                                                                                                                                                    .optional(),
+  HEATOPS_ELEVATED_TEMPERATURE_F: z.coerce
+    .number()
+    .optional(),
 
-                                                                                                                                                                      AI_PROVIDER: z
-                                                                                                                                                                          .string()
-                                                                                                                                                                              .optional()
-                                                                                                                                                                                  .or(z.literal("")),
+  HEATOPS_HIGH_TEMPERATURE_F: z.coerce
+    .number()
+    .optional(),
 
-                                                                                                                                                                                    AI_API_KEY: z
-                                                                                                                                                                                        .string()
-                                                                                                                                                                                            .optional()
-                                                                                                                                                                                                .or(z.literal("")),
+  HEATOPS_CRITICAL_TEMPERATURE_F: z.coerce
+    .number()
+    .optional(),
 
-                                                                                                                                                                                                  AI_MODEL: z
-                                                                                                                                                                                                      .string()
-                                                                                                                                                                                                          .optional()
-                                                                                                                                                                                                              .or(z.literal("")),
-                                                                                                                                                                                                              });
+  AI_PROVIDER: z
+    .string()
+    .optional()
+    .or(z.literal("")),
 
-                                                                                                                                                                                                              export function getEnvironment() {
-                                                                                                                                                                                                                return environmentSchema.parse({
-                                                                                                                                                                                                                    NEXT_PUBLIC_APP_URL:
-                                                                                                                                                                                                                          process.env.NEXT_PUBLIC_APP_URL,
+  AI_API_KEY: z
+    .string()
+    .optional()
+    .or(z.literal("")),
 
-                                                                                                                                                                                                                              NEXT_PUBLIC_SUPABASE_URL:
-                                                                                                                                                                                                                                    process.env.NEXT_PUBLIC_SUPABASE_URL,
+  AI_MODEL: z
+    .string()
+    .optional()
+    .or(z.literal("")),
+});
 
-                                                                                                                                                                                                                                        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
-                                                                                                                                                                                                                                              process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+export function getEnvironment() {
+  return environmentSchema.parse({
+    NEXT_PUBLIC_APP_URL:
+      process.env.NEXT_PUBLIC_APP_URL,
 
-                                                                                                                                                                                                                                                  SUPABASE_SERVICE_ROLE_KEY:
-                                                                                                                                                                                                                                                        process.env.SUPABASE_SERVICE_ROLE_KEY,
+    NEXT_PUBLIC_SUPABASE_URL:
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
 
-                                                                                                                                                                                                                                                            THERMAL_PROVIDER:
-                                                                                                                                                                                                                                                                  process.env.THERMAL_PROVIDER ??
-                                                                                                                                                                                                                                                                        "development",
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 
-                                                                                                                                                                                                                                                                            FORTYGUARD_API_BASE_URL:
-                                                                                                                                                                                                                                                                                  process.env.FORTYGUARD_API_BASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY:
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
 
-                                                                                                                                                                                                                                                                                      FORTYGUARD_API_KEY:
-                                                                                                                                                                                                                                                                                            process.env.FORTYGUARD_API_KEY,
+    THERMAL_PROVIDER:
+      process.env.THERMAL_PROVIDER ??
+      "development",
 
-                                                                                                                                                                                                                                                                                                HEATOPS_REFERENCE_TEMPERATURE_F:
-                                                                                                                                                                                                                                                                                                      process.env.HEATOPS_REFERENCE_TEMPERATURE_F,
+    FORTYGUARD_API_BASE_URL:
+      process.env.FORTYGUARD_API_BASE_URL,
 
-                                                                                                                                                                                                                                                                                                          HEATOPS_ELEVATED_TEMPERATURE_F:
-                                                                                                                                                                                                                                                                                                                process.env.HEATOPS_ELEVATED_TEMPERATURE_F,
+    FORTYGUARD_API_KEY:
+      process.env.FORTYGUARD_API_KEY,
 
-                                                                                                                                                                                                                                                                                                                    HEATOPS_HIGH_TEMPERATURE_F:
-                                                                                                                                                                                                                                                                                                                          process.env.HEATOPS_HIGH_TEMPERATURE_F,
+    FORTYGUARD_POLL_INTERVAL_MS:
+      process.env.FORTYGUARD_POLL_INTERVAL_MS,
 
-                                                                                                                                                                                                                                                                                                                              HEATOPS_CRITICAL_TEMPERATURE_F:
-                                                                                                                                                                                                                                                                                                                                    process.env.HEATOPS_CRITICAL_TEMPERATURE_F,
+    FORTYGUARD_MAX_POLL_ATTEMPTS:
+      process.env.FORTYGUARD_MAX_POLL_ATTEMPTS,
 
-                                                                                                                                                                                                                                                                                                                                        AI_PROVIDER:
-                                                                                                                                                                                                                                                                                                                                              process.env.AI_PROVIDER,
+    HEATOPS_REFERENCE_TEMPERATURE_F:
+      process.env.HEATOPS_REFERENCE_TEMPERATURE_F,
 
-                                                                                                                                                                                                                                                                                                                                                  AI_API_KEY:
-                                                                                                                                                                                                                                                                                                                                                        process.env.AI_API_KEY,
+    HEATOPS_ELEVATED_TEMPERATURE_F:
+      process.env.HEATOPS_ELEVATED_TEMPERATURE_F,
 
-                                                                                                                                                                                                                                                                                                                                                            AI_MODEL:
-                                                                                                                                                                                                                                                                                                                                                                  process.env.AI_MODEL,
-                                                                                                                                                                                                                                                                                                                                                                    });
-                                                                                                                                                                                                                                                                                                                                                                    }
+    HEATOPS_HIGH_TEMPERATURE_F:
+      process.env.HEATOPS_HIGH_TEMPERATURE_F,
+
+    HEATOPS_CRITICAL_TEMPERATURE_F:
+      process.env.HEATOPS_CRITICAL_TEMPERATURE_F,
+
+    AI_PROVIDER:
+      process.env.AI_PROVIDER,
+
+    AI_API_KEY:
+      process.env.AI_API_KEY,
+
+    AI_MODEL:
+      process.env.AI_MODEL,
+  });
+}
