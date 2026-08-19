@@ -1,6 +1,6 @@
 import type {
-  ThermalDataProvider,
-} from "./types";
+  ThermalForecast,
+} from "@/types/thermal";
 
 import type {
   CurrentConditionsRequest,
@@ -16,25 +16,67 @@ import type {
 } from "./results";
 
 import type {
-  ThermalForecast,
-} from "../types";
+  ThermalDataProvider,
+} from "./types";
+
+import {
+  FortyGuardClient,
+} from "./fortyguard-client";
+
+import {
+  buildHeatmapPayload,
+} from "./fortyguard-payload";
+
+import {
+  waitForFortyGuardResult,
+} from "./fortyguard-poll";
+
+import {
+  normalizeHeatmapResult,
+} from "../schemas/normalize";
 
 export class FortyGuardThermalProvider
   implements ThermalDataProvider
 {
+  private readonly client =
+    new FortyGuardClient();
+
+  async getForecast(
+    request: ForecastRequest
+  ): Promise<ThermalForecast> {
+    const payload =
+      buildHeatmapPayload(
+        request
+      );
+
+    const activityId =
+      await this.client.submitHeatmap(
+        payload
+      );
+
+    const result =
+      await waitForFortyGuardResult(
+        this.client,
+        activityId
+      );
+
+    return normalizeHeatmapResult(
+      result,
+      {
+        siteId:
+          request.siteId,
+
+        timestamp:
+          request.startTime,
+      }
+    );
+  }
+
   async getCurrentConditions(
     _request: CurrentConditionsRequest
   ): Promise<ThermalConditions> {
     throw new Error(
-      "FortyGuard current conditions are not implemented yet."
-    );
-  }
-
-  async getForecast(
-    _request: ForecastRequest
-  ): Promise<ThermalForecast> {
-    throw new Error(
-      "FortyGuard forecast is not implemented yet."
+      "Current conditions are not part of the HeatOps Heatmap MVP."
     );
   }
 
@@ -42,7 +84,7 @@ export class FortyGuardThermalProvider
     _request: HeatmapRequest
   ): Promise<HeatmapResult> {
     throw new Error(
-      "FortyGuard heatmap is not implemented yet."
+      "Use getForecast for the HeatOps Heatmap workflow."
     );
   }
 
@@ -50,7 +92,7 @@ export class FortyGuardThermalProvider
     _request: EnvironmentalRequest
   ): Promise<EnvironmentalResult> {
     throw new Error(
-      "FortyGuard environmental parameters are not implemented yet."
+      "Environmental parameters will be added after the Heatmap MVP is verified."
     );
   }
-}
+        }
