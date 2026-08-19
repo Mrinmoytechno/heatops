@@ -1,16 +1,34 @@
 import type {
-      ThermalForecast,
-      } from "@/types/thermal";
+  ThermalForecast,
+} from "@/types/thermal";
 
-      export interface ThermalDataProvider {
-        getForecast(
-            request: ForecastRequest
-              ): Promise<ThermalForecast>;
-              }
+import type {
+  CurrentConditionsRequest,
+  EnvironmentalRequest,
+  ForecastRequest,
+  HeatmapRequest,
+} from "./requests";
 
-              export type ForecastRequest = {
-                latitude: number;
-                  longitude: number;
-                    startTime: string;
-                      endTime: string;
-                      };
+import type {
+  EnvironmentalResult,
+  HeatmapResult,
+  ThermalConditions,
+} from "./results";
+
+export interface ThermalDataProvider {
+  getForecast(
+    request: ForecastRequest
+  ): Promise<ThermalForecast>;
+
+  getCurrentConditions(
+    request: CurrentConditionsRequest
+  ): Promise<ThermalConditions>;
+
+  getHeatmap(
+    request: HeatmapRequest
+  ): Promise<HeatmapResult>;
+
+  getEnvironmentalParameters(
+    request: EnvironmentalRequest
+  ): Promise<EnvironmentalResult>;
+}
