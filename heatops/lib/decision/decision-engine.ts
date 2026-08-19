@@ -7,6 +7,11 @@ import type {
 } from "@/types/risk";
 
 import type {
+  ThermalForecast,
+  ThermalObservation,
+} from "@/types/thermal";
+
+import type {
   CandidateDecision,
   DecisionActionType,
   DecisionRecommendation,
@@ -28,6 +33,8 @@ type DecisionEngineInput = {
     workforceCount?: number;
   };
 
+  thermalForecast?: ThermalForecast | null;
+
   constraints?: {
     allowEarlierMove?: boolean;
 
@@ -41,6 +48,18 @@ type DecisionEngineInput = {
 
     latestEnd?: string | null;
   };
+};
+
+type ThermalWindow = {
+  startTime: string;
+
+  endTime: string;
+
+  averageTemperatureC: number;
+
+  thermalScore: number;
+
+  observationCount: number;
 };
 
 function clamp(
@@ -60,7 +79,10 @@ function round(
 ): number {
   const factor = 10 ** decimals;
 
-  return Math.round(value * factor) / factor;
+  return (
+    Math.round(value * factor) /
+    factor
+  );
 }
 
 function getPriority(
@@ -112,26 +134,68 @@ function minutesToTime(
   const minutes =
     normalized % 60;
 
+  return `${String(hours).padStart(
+    2,
+    "0"
+  )}:${String(minutes).padStart(
+    2,
+    "0"
+  )}`;
+}
+
+function getObservationTime(
+  observation: ThermalObservation
+): string {
+  const date =
+    new Date(
+      observation.timestamp
+    );
+
   return `${String(
-    hours
+    date.getHours()
   ).padStart(
     2,
     "0"
   )}:${String(
-    minutes
+    date.getMinutes()
   ).padStart(
     2,
     "0"
   )}`;
 }
 
-function shiftTime(
-  time: string,
-  minutes: number
-): string {
-  return minutesToTime(
-    timeToMinutes(time) +
-      minutes
+function getObservationMinutes(
+  observation: ThermalObservation
+): number {
+  return timeToMinutes(
+    getObservationTime(
+      observation
+    )
+  );
+}
+
+function getTemperatureF(
+  temperatureC: number
+): number {
+  return (
+    temperatureC * 9 / 5 +
+    32
+  );
+}
+
+function getThermalScore(
+  temperatureC: number
+): number {
+  const temperatureF =
+    getTemperatureF(
+      temperatureC
+    );
+
+  return clamp(
+    (
+      (temperatureF - 75) /
+      35
+    ) * 100
   );
 }
 
@@ -148,8 +212,8 @@ function calculateOverallScore(
 
   return round(
     riskScore * 0.55 +
-      disruptionScore * 0.3 +
-      normalizedCost * 0.15
+    disruptionScore * 0.3 +
+    normalizedCost * 0.15
   );
 }
 
@@ -213,10 +277,358 @@ function createCandidate(
   };
 }
 
+function calculateOperationDurationMinutes(
+  scheduledStart: string,
+  scheduledEnd: string
+): number {
+  const start =
+    timeToMinutes(
+      scheduledStart
+    );
+
+  const end =
+    timeToMinutes(
+      scheduledEnd
+    );
+
+  if (end >= start) {
+    return end - start;
+  }
+
+  return (
+    1440 -
+    start +
+    end
+  );
+}
+
+function getObservationsForWindow(
+  observations: ThermalObservation[],
+  startMinutes: number,
+  endMinutes: number
+): ThermalObservation[] {
+  return observations.filter(
+    (
+      observation
+    ) => {
+      const observationMinutes =
+        getObservationMinutes(
+          observation
+        );
+
+      if (
+        startMinutes <=
+        endMinutes
+      ) {
+        return (
+          observationMinutes >=
+            startMinutes &&
+          observationMinutes <
+            endMinutes
+        );
+      }
+
+      return (
+        observationMinutes >=
+          startMinutes ||
+        observationMinutes <
+          endMinutes
+      );
+    }
+  );
+}
+
+function calculateWindow(
+  observations: ThermalObservation[],
+  startMinutes: number,
+  durationMinutes: number
+): ThermalWindow | null {
+  if (
+    durationMinutes <= 0 ||
+    durationMinutes > 1440
+  ) {
+    return null;
+  }
+
+  const endMinutes =
+    (
+      startMinutes +
+      durationMinutes
+    ) % 1440;
+
+  const windowObservations =
+    getObservationsForWindow(
+      observations,
+      startMinutes,
+      endMinutes
+    );
+
+  if (
+    windowObservations.length === 0
+  ) {
+    return null;
+  }
+
+  const totalTemperatureC =
+    windowObservations.reduce(
+      (
+        total,
+        observation
+      ) =>
+        total +
+        observation.temperatureC,
+      0
+    );
+
+  const averageTemperatureC =
+    totalTemperatureC /
+    windowObservations.length;
+
+  const averageThermalScore =
+    windowObservations.reduce(
+      (
+        total,
+        observation
+      ) =>
+        total +
+        getThermalScore(
+          observation.temperatureC
+        ),
+      0
+    ) /
+    windowObservations.length;
+
+  return {
+    startTime:
+      minutesToTime(
+        startMinutes
+      ),
+
+    endTime:
+      minutesToTime(
+        endMinutes
+      ),
+
+    averageTemperatureC:
+      round(
+        averageTemperatureC
+      ),
+
+    thermalScore:
+      round(
+        averageThermalScore
+      ),
+
+    observationCount:
+      windowObservations.length,
+  };
+}
+
+function getCurrentThermalWindow(
+  observations: ThermalObservation[],
+  operationStart: string,
+  durationMinutes: number
+): ThermalWindow | null {
+  return calculateWindow(
+    observations,
+    timeToMinutes(
+      operationStart
+    ),
+    durationMinutes
+  );
+}
+
+function isWithinConstraints(
+  startMinutes: number,
+  durationMinutes: number,
+  earliestStart: string | null,
+  latestEnd: string | null
+): boolean {
+  const endMinutes =
+    startMinutes +
+    durationMinutes;
+
+  if (
+    earliestStart &&
+    startMinutes <
+      timeToMinutes(
+        earliestStart
+      )
+  ) {
+    return false;
+  }
+
+  if (
+    latestEnd &&
+    endMinutes >
+      timeToMinutes(
+        latestEnd
+      )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function findThermalCandidates(
+  observations: ThermalObservation[],
+  operationStart: string,
+  durationMinutes: number,
+  constraints: {
+    allowEarlierMove: boolean;
+    allowLaterMove: boolean;
+    earliestStart: string | null;
+    latestEnd: string | null;
+  }
+): ThermalWindow[] {
+  if (
+    observations.length === 0 ||
+    durationMinutes <= 0
+  ) {
+    return [];
+  }
+
+  const currentStartMinutes =
+    timeToMinutes(
+      operationStart
+    );
+
+  const uniqueObservationMinutes =
+    Array.from(
+      new Set(
+        observations.map(
+          getObservationMinutes
+        )
+      )
+    ).sort(
+      (
+        a,
+        b
+      ) => a - b
+    );
+
+  const candidates =
+    uniqueObservationMinutes
+      .filter(
+        (
+          startMinutes
+        ) => {
+          if (
+            startMinutes <
+            currentStartMinutes
+          ) {
+            return (
+              constraints.allowEarlierMove
+            );
+          }
+
+          if (
+            startMinutes >
+            currentStartMinutes
+          ) {
+            return (
+              constraints.allowLaterMove
+            );
+          }
+
+          return false;
+        }
+      )
+      .filter(
+        (
+          startMinutes
+        ) =>
+          isWithinConstraints(
+            startMinutes,
+            durationMinutes,
+            constraints.earliestStart,
+            constraints.latestEnd
+          )
+      )
+      .map(
+        (
+          startMinutes
+        ) =>
+          calculateWindow(
+            observations,
+            startMinutes,
+            durationMinutes
+          )
+      )
+      .filter(
+        (
+          window
+        ): window is ThermalWindow =>
+          window !== null
+      )
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          a.thermalScore -
+          b.thermalScore
+      );
+
+  const uniqueCandidates =
+    new Map<
+      string,
+      ThermalWindow
+    >();
+
+  for (
+    const candidate
+    of candidates
+  ) {
+    const key =
+      `${candidate.startTime}-${candidate.endTime}`;
+
+    if (
+      !uniqueCandidates.has(
+        key
+      )
+    ) {
+      uniqueCandidates.set(
+        key,
+        candidate
+      );
+    }
+  }
+
+  return Array.from(
+    uniqueCandidates.values()
+  );
+}
+
+function calculateThermalRiskReduction(
+  currentWindow: ThermalWindow,
+  candidateWindow: ThermalWindow
+): number {
+  if (
+    currentWindow.thermalScore <=
+    0
+  ) {
+    return 0;
+  }
+
+  return clamp(
+    (
+      (
+        currentWindow.thermalScore -
+        candidateWindow.thermalScore
+      ) /
+      currentWindow.thermalScore
+    ) *
+      100
+  );
+}
+
 export function calculateDecision(
   input: DecisionEngineInput
 ): DecisionRecommendation {
-  const candidates: CandidateDecision[] =
+  const candidates:
+    CandidateDecision[] =
     [];
 
   const {
@@ -257,6 +669,10 @@ export function calculateDecision(
       null,
   };
 
+  const baseModeledCost =
+    impact.estimatedOperationalCost +
+    impact.estimatedInventoryExposure;
+
   const currentPlan =
     createCandidate(
       "maintain",
@@ -266,8 +682,7 @@ export function calculateDecision(
       operation.scheduledEnd,
       risk.score,
       0,
-      impact.estimatedOperationalCost +
-        impact.estimatedInventoryExposure,
+      baseModeledCost,
       [
         "The current schedule remains unchanged.",
         ...risk.reasons,
@@ -279,112 +694,155 @@ export function calculateDecision(
   );
 
   const durationMinutes =
-    Math.max(
-      timeToMinutes(
-        operation.scheduledEnd
-      ) -
-        timeToMinutes(
-          operation.scheduledStart
-        ),
-      0
+    calculateOperationDurationMinutes(
+      operation.scheduledStart,
+      operation.scheduledEnd
+    );
+
+  const observations =
+    input.thermalForecast
+      ?.observations
+      .slice()
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          new Date(
+            a.timestamp
+          ).getTime() -
+          new Date(
+            b.timestamp
+          ).getTime()
+      ) ??
+    [];
+
+  const currentThermalWindow =
+    getCurrentThermalWindow(
+      observations,
+      operation.scheduledStart,
+      durationMinutes
+    );
+
+  const thermalCandidates =
+    findThermalCandidates(
+      observations,
+      operation.scheduledStart,
+      durationMinutes,
+      {
+        allowEarlierMove:
+          constraints.allowEarlierMove,
+
+        allowLaterMove:
+          constraints.allowLaterMove,
+
+        earliestStart:
+          constraints.earliestStart,
+
+        latestEnd:
+          constraints.latestEnd,
+      }
     );
 
   if (
-    constraints.allowEarlierMove &&
+    currentThermalWindow &&
+    thermalCandidates.length > 0 &&
     risk.score >= 35
   ) {
-    const proposedStart =
-      shiftTime(
-        operation.scheduledStart,
-        -120
-      );
-
-    const proposedEnd =
-      minutesToTime(
-        timeToMinutes(
-          proposedStart
-        ) +
-          durationMinutes
-      );
-
-    const withinConstraint =
-      !constraints.earliestStart ||
-      timeToMinutes(
-        proposedStart
-      ) >=
-        timeToMinutes(
-          constraints.earliestStart
-        );
-
-    if (withinConstraint) {
-      candidates.push(
-        createCandidate(
-          "move_earlier",
-          "Move operation earlier",
-          "Shift the operation into an earlier thermal window to reduce expected heat exposure.",
-          proposedStart,
-          proposedEnd,
-          risk.score * 0.55,
-          35,
+    const lowerRiskWindows =
+      thermalCandidates
+        .filter(
           (
-            impact.estimatedOperationalCost +
-            impact.estimatedInventoryExposure
-          ) *
-            0.55,
-          [
-            "The current operation overlaps elevated thermal conditions.",
-            "An earlier schedule may reduce the highest-risk exposure period.",
-          ]
+            candidate
+          ) =>
+            candidate.thermalScore <
+            currentThermalWindow.thermalScore
         )
-      );
-    }
-  }
-
-  if (
-    constraints.allowLaterMove &&
-    risk.score >= 35
-  ) {
-    const proposedStart =
-      shiftTime(
-        operation.scheduledStart,
-        120
-      );
-
-    const proposedEnd =
-      minutesToTime(
-        timeToMinutes(
-          proposedStart
-        ) +
-          durationMinutes
-      );
-
-    const withinConstraint =
-      !constraints.latestEnd ||
-      timeToMinutes(
-        proposedEnd
-      ) <=
-        timeToMinutes(
-          constraints.latestEnd
+        .slice(
+          0,
+          2
         );
 
-    if (withinConstraint) {
+    for (
+      const candidateWindow
+      of lowerRiskWindows
+    ) {
+      const proposedStartMinutes =
+        timeToMinutes(
+          candidateWindow.startTime
+        );
+
+      const isEarlier =
+        proposedStartMinutes <
+        timeToMinutes(
+          operation.scheduledStart
+        );
+
+      const actionType:
+        DecisionActionType =
+        isEarlier
+          ? "move_earlier"
+          : "move_later";
+
+      const thermalRiskReduction =
+        calculateThermalRiskReduction(
+          currentThermalWindow,
+          candidateWindow
+        );
+
+      const modeledRiskScore =
+        clamp(
+          risk.score *
+            (
+              1 -
+              thermalRiskReduction /
+                100
+            )
+        );
+
+      const scheduleDistance =
+        Math.abs(
+          proposedStartMinutes -
+            timeToMinutes(
+              operation.scheduledStart
+            )
+        );
+
+      const disruptionScore =
+        clamp(
+          15 +
+            (
+              scheduleDistance /
+              60
+            ) *
+              10
+        );
+
+      const modeledCost =
+        baseModeledCost *
+        (
+          1 -
+          thermalRiskReduction /
+            100
+        );
+
       candidates.push(
         createCandidate(
-          "move_later",
-          "Move operation later",
-          "Shift the operation away from the current high-exposure period.",
-          proposedStart,
-          proposedEnd,
-          risk.score * 0.65,
-          30,
-          (
-            impact.estimatedOperationalCost +
-            impact.estimatedInventoryExposure
-          ) *
-            0.65,
+          actionType,
+          isEarlier
+            ? "Move operation earlier"
+            : "Move operation later",
+          "Shift the operation into a lower-risk thermal window identified from normalized thermal forecast data.",
+          candidateWindow.startTime,
+          candidateWindow.endTime,
+          modeledRiskScore,
+          disruptionScore,
+          modeledCost,
           [
-            "The operation can potentially be moved outside part of the affected window.",
-            "The final recommendation should favor this option only when the thermal window is actually lower later.",
+            `The current schedule has an average thermal score of ${currentThermalWindow.thermalScore}.`,
+            `The proposed window has an average thermal score of ${candidateWindow.thermalScore}.`,
+            `The proposed window is based on available thermal observations from the selected provider.`,
+            `Average temperature in the proposed window: ${getTemperatureF(candidateWindow.averageTemperatureC).toFixed(1)}°F.`,
           ]
         )
       );
@@ -404,10 +862,7 @@ export function calculateDecision(
         null,
         risk.score * 0.7,
         45,
-        (
-          impact.estimatedOperationalCost +
-          impact.estimatedInventoryExposure
-        ) *
+        baseModeledCost *
           0.7,
         [
           "The operation has significant thermal exposure.",
@@ -430,10 +885,7 @@ export function calculateDecision(
         null,
         risk.score * 0.6,
         25,
-        (
-          impact.estimatedOperationalCost +
-          impact.estimatedInventoryExposure
-        ) *
+        baseModeledCost *
           0.6,
         [
           "The operation has meaningful operational or temperature sensitivity.",
@@ -455,10 +907,7 @@ export function calculateDecision(
         null,
         risk.score * 0.45,
         55,
-        (
-          impact.estimatedOperationalCost +
-          impact.estimatedInventoryExposure
-        ) *
+        baseModeledCost *
           0.5,
         [
           "The current risk level is critical.",
@@ -471,7 +920,10 @@ export function calculateDecision(
   const rankedCandidates =
     candidates
       .sort(
-        (a, b) =>
+        (
+          a,
+          b
+        ) =>
           a.tradeOff
             .overallScore -
           b.tradeOff
@@ -482,13 +934,15 @@ export function calculateDecision(
     rankedCandidates[0];
 
   const alternatives =
-    rankedCandidates
-      .slice(1);
+    rankedCandidates.slice(
+      1
+    );
 
   const assumptions = [
     "Risk scores are calculated from deterministic HeatOps logic.",
     "Operational cost and inventory exposure are modeled estimates, not measured financial losses.",
-    "Schedule alternatives are candidate actions and should be validated against site constraints.",
+    "Schedule alternatives are generated from available normalized thermal forecast observations and validated against configured scheduling constraints.",
+    "If no lower-risk thermal window is available, HeatOps does not invent a replacement time.",
   ];
 
   return {
@@ -519,4 +973,4 @@ export function calculateDecision(
 
     assumptions,
   };
-  }
+    }
