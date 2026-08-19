@@ -1,26 +1,30 @@
 import type {
-      ThermalDataProvider,
-      } from "./providers/types";
+  ThermalDataProvider,
+} from "./providers/types";
 
-      export function getThermalProvider(): ThermalDataProvider {
-        const provider =
-            process.env.THERMAL_PROVIDER ??
-                "development";
+import {
+  DevelopmentThermalProvider,
+} from "./providers/development";
 
-                  switch (provider) {
-                      case "development":
-                            throw new Error(
-                                    "Development thermal provider will be implemented in Build 004."
-                                          );
+export function getThermalProvider():
+  ThermalDataProvider {
+  const provider =
+    process.env.THERMAL_PROVIDER ??
+    "development";
 
-                                              case "fortyguard":
-                                                    throw new Error(
-                                                            "FortyGuard provider will be implemented after official API access opens."
-                                                                  );
+  switch (provider) {
+    case "development":
+    case "mock":
+      return new DevelopmentThermalProvider();
 
-                                                                      default:
-                                                                            throw new Error(
-                                                                                    `Unsupported thermal provider: ${provider}`
-                                                                                          );
-                                                                                            }
-                                                                                            }
+    case "fortyguard":
+      throw new Error(
+        "FortyGuard provider is not configured yet."
+      );
+
+    default:
+      throw new Error(
+        `Unsupported thermal provider: ${provider}`
+      );
+  }
+}
