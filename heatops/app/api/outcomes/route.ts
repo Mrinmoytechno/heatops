@@ -100,6 +100,18 @@ const requestSchema = z.object({
     .optional(),
 });
 
+const querySchema = z.object({
+  siteId: z
+    .string()
+    .uuid()
+    .optional(),
+
+  decisionId: z
+    .string()
+    .uuid()
+    .optional(),
+});
+
 export async function POST(
   request: NextRequest,
 ) {
@@ -222,104 +234,14 @@ export async function POST(
 
         error:
           "OUTCOME_CREATION_FAILED",
-      },
-      {
-        status: 500,
-      },
-    );
-  }
-      }
-export async function GET(
-  request: NextRequest,
-) {
-  try {
-    const searchParams =
-      request.nextUrl.searchParams;
-
-    const siteId =
-      searchParams.get("siteId");
-
-    const decisionId =
-      searchParams.get("decisionId");
-
-    if (!siteId && !decisionId) {
-      return NextResponse.json(
-        {
-          success: false,
-
-          error:
-            "SITE_ID_OR_DECISION_ID_REQUIRED",
         },
         {
-          status: 400,
+          status: 500,
         },
-      );
-    }
-
-    if (siteId && decisionId) {
-      return NextResponse.json(
-        {
-          success: false,
-
-          error:
-            "USE_ONE_FILTER_ONLY",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    if (siteId) {
-      const outcomes =
-        await getOutcomesBySiteId(
-          siteId,
-        );
-
-      return NextResponse.json(
-        {
-          success: true,
-
-          data: {
-            outcomes,
-          },
-        },
-      );
-    }
-
-    const outcomes =
-      await getOutcomesByDecisionId(
-        decisionId as string,
-      );
-
-    return NextResponse.json(
-      {
-        success: true,
-
-        data: {
-          outcomes,
-        },
-      },
-    );
-  } catch (error) {
-    console.error(
-      "Failed to fetch outcomes:",
-      error,
-    );
-
-    return NextResponse.json(
-      {
-        success: false,
-
-        error:
-          "OUTCOME_FETCH_FAILED",
-      },
-      {
-        status: 500,
-      },
     );
   }
 }
+
 export async function GET(
   request: NextRequest,
 ) {
@@ -361,10 +283,36 @@ export async function GET(
       );
     }
 
-    if (siteId) {
+    const parsedQuery =
+      querySchema.safeParse({
+        siteId:
+          siteId ?? undefined,
+
+        decisionId:
+          decisionId ?? undefined,
+      });
+
+    if (!parsedQuery.success) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          error:
+            "INVALID_QUERY_PARAMETERS",
+
+          details:
+            parsedQuery.error.flatten(),
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (parsedQuery.data.siteId) {
       const outcomes =
         await getOutcomesBySiteId(
-          siteId,
+          parsedQuery.data.siteId,
         );
 
       return NextResponse.json(
@@ -375,12 +323,32 @@ export async function GET(
             outcomes,
           },
         },
+        {
+          status: 200,
+        },
+      );
+    }
+
+    const decisionIdValue =
+      parsedQuery.data.decisionId;
+
+    if (!decisionIdValue) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          error:
+            "DECISION_ID_REQUIRED",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
     const outcomes =
       await getOutcomesByDecisionId(
-        decisionId as string,
+        decisionIdValue,
       );
 
     return NextResponse.json(
@@ -390,6 +358,9 @@ export async function GET(
         data: {
           outcomes,
         },
+      },
+      {
+        status: 200,
       },
     );
   } catch (error) {
@@ -410,4 +381,4 @@ export async function GET(
       },
     );
   }
-        }
+  }
