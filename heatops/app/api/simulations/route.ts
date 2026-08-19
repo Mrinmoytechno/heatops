@@ -26,34 +26,59 @@ const scheduleSchema = z.object({
   end: timeSchema,
 });
 
+const polygonAoiSchema = z.object({
+  type: z.literal("FeatureCollection"),
+
+  features: z
+    .array(
+      z.object({
+        type: z.literal("Feature"),
+
+        properties: z.record(
+          z.string(),
+          z.unknown(),
+        ),
+
+        geometry: z.object({
+          type: z.literal("Polygon"),
+
+          coordinates: z.array(
+            z.array(
+              z.array(
+                z.number(),
+              ),
+            ),
+          ),
+        }),
+      }),
+    )
+    .min(1),
+});
+
 const forecastRequestSchema = z.object({
+  siteId: z.string().uuid(),
+
   latitude: z.number(),
 
   longitude: z.number(),
 
-  startDate: z.string(),
+  startTime: z.string().datetime(),
 
-  endDate: z.string(),
+  endTime: z.string().datetime(),
 
-  startTime: timeSchema.optional(),
-
-  endTime: timeSchema.optional(),
-
-  filterType: z.string().optional(),
+  polygonAoi: polygonAoiSchema,
 });
 
-const impactInputSchema = z.object({
-  operationId: z.string().uuid(),
+const impactAssumptionsSchema = z.object({
+  referenceTemperatureF: z.number(),
 
-  siteId: z.string().uuid(),
+  elevatedTemperatureF: z.number(),
 
-  operationType: z.string(),
+  highTemperatureF: z.number(),
 
-  scheduledStart: timeSchema,
+  criticalTemperatureF: z.number(),
 
-  scheduledEnd: timeSchema,
-
-  workforceCount: z
+  productivityLossPerHour: z
     .number()
     .min(0),
 
@@ -61,27 +86,64 @@ const impactInputSchema = z.object({
     .number()
     .min(0),
 
-  disruptionCostPerHour: z
+  inventoryExposureRatePerHour: z
     .number()
     .min(0),
+});
 
-  inventoryValueAtRisk: z
-    .number()
-    .min(0)
-    .optional(),
+const impactInputSchema = z.object({
+  operation: z.object({
+    id: z.string().uuid(),
 
-  inventorySensitivity: z
-    .number()
-    .min(0)
-    .max(1)
-    .optional(),
+    zoneId: z
+      .string()
+      .uuid()
+      .nullable(),
 
-  operationalPriority: z
-    .number()
-    .min(0)
-    .max(1)
-    .optional(),
-}).passthrough();
+    scheduledStart: timeSchema,
+
+    scheduledEnd: timeSchema,
+
+    workforceCount: z
+      .number()
+      .min(0),
+
+    operationalPriority: z
+      .number()
+      .min(0)
+      .max(1),
+  }),
+
+  zone: z
+    .object({
+      temperatureSensitivity: z
+        .number()
+        .min(0)
+        .max(1),
+
+      operationalPriority: z
+        .number()
+        .min(0)
+        .max(1),
+    })
+    .nullable(),
+
+  inventory: z
+    .object({
+      temperatureSensitivity: z
+        .number()
+        .min(0)
+        .max(1),
+
+      exposureValue: z
+        .number()
+        .min(0),
+    })
+    .nullable(),
+
+  assumptions:
+    impactAssumptionsSchema,
+});
 
 const operationSchema = z.object({
   scheduledStart: timeSchema,
@@ -144,34 +206,16 @@ const operationAnalysisInputSchema =
         .optional(),
   });
 
-const decisionSchema = z.object({
-  risk: z.object({
-    score: z
-      .number()
-      .min(0)
-      .max(100),
-  }),
+const decisionSchema = z
+  .object({
+    recommendation: z.unknown(),
 
-  recommendation: z.object({
-    action: z.string().min(1),
-
-    reason: z.string(),
-
-    schedule: scheduleSchema
+    projectedRisk: z
+      .unknown()
       .nullable()
       .optional(),
-  }),
-
-  projectedRisk: z
-    .object({
-      score: z
-        .number()
-        .min(0)
-        .max(100),
-    })
-    .nullable()
-    .optional(),
-}).passthrough();
+  })
+  .passthrough();
 
 const operatingPlanItemSchema =
   z.object({
@@ -278,10 +322,9 @@ const changeSchema =
         operationId:
           z.string().uuid(),
 
-        type:
-          z.literal(
-            "move_earlier",
-          ),
+        type: z.literal(
+          "move_earlier",
+        ),
 
         minutes: z
           .number()
@@ -293,10 +336,9 @@ const changeSchema =
         operationId:
           z.string().uuid(),
 
-        type:
-          z.literal(
-            "move_later",
-          ),
+        type: z.literal(
+          "move_later",
+        ),
 
         minutes: z
           .number()
@@ -308,10 +350,9 @@ const changeSchema =
         operationId:
           z.string().uuid(),
 
-        type:
-          z.literal(
-            "set_schedule",
-          ),
+        type: z.literal(
+          "set_schedule",
+        ),
 
         start: timeSchema,
 
@@ -331,8 +372,9 @@ const changeSchema =
         operationId:
           z.string().uuid(),
 
-        type:
-          z.literal("maintain"),
+        type: z.literal(
+          "maintain",
+        ),
       }),
     ],
   );
@@ -501,7 +543,7 @@ export async function POST(
       },
     );
   } catch (error) {
-    if (
+   if (
       error instanceof
       z.ZodError
     ) {
@@ -538,4 +580,4 @@ export async function POST(
       },
     );
   }
-  }
+            }
