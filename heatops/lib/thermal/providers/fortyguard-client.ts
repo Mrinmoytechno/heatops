@@ -1,4 +1,4 @@
-import {
+ import {
   getEnvironment,
 } from "@/lib/config/env";
 
@@ -6,51 +6,49 @@ import {
   FortyGuardApiError,
 } from "./fortyguard-error";
 
-type FortyGuardSubmitResponse = {
+type SubmitResponse = {
   error?: boolean;
-  status_code?: number;
   message?: string;
-
   data?: {
     activity_id?: string;
   };
 };
 
-type FortyGuardStatusResponse = {
-  error?: boolean;
-  status_code?: number;
+export type FortyGuardStatusData = {
+  activity_id?: string;
+  status?: string;
+  result?: unknown;
   message?: string;
+};
 
-  data?: {
-    activity_id?: string;
-    status?: string;
-    result?: unknown;
-  };
+type StatusResponse = {
+  error?: boolean;
+  message?: string;
+  data?: FortyGuardStatusData;
 };
 
 export class FortyGuardClient {
   private readonly baseUrl: string;
-
   private readonly apiKey: string;
 
   constructor() {
     const environment =
       getEnvironment();
 
-    if (
-      !environment.FORTYGUARD_API_BASE_URL
-    ) {
+    const baseUrl =
+      environment.FORTYGUARD_BASE_URL ||
+      environment.FORTYGUARD_API_BASE_URL;
+
+    if (!baseUrl) {
       throw new FortyGuardApiError({
         message:
-          "FORTYGUARD_API_BASE_URL is not configured.",
+          "FortyGuard base URL is not configured.",
         code:
           "FORTYGUARD_CONFIGURATION_ERROR",
       });
     }
 
-    if (
-      !environment.FORTYGUARD_API_KEY
-    ) {
+    if (!environment.FORTYGUARD_API_KEY) {
       throw new FortyGuardApiError({
         message:
           "FORTYGUARD_API_KEY is not configured.",
@@ -60,10 +58,7 @@ export class FortyGuardClient {
     }
 
     this.baseUrl =
-      environment.FORTYGUARD_API_BASE_URL.replace(
-        /\/$/,
-        ""
-      );
+      baseUrl.replace(/\/$/, "");
 
     this.apiKey =
       environment.FORTYGUARD_API_KEY;
@@ -126,19 +121,29 @@ export class FortyGuardClient {
   }
 
   async submitHeatmap(
-    payload: unknown
+    payload: Record<string, unknown>
   ): Promise<string> {
     const response =
-      await this.request<FortyGuardSubmitResponse>(
+      await this.request<SubmitResponse>(
         "/v1/heatmap",
         {
           method: "POST",
-
           body: JSON.stringify(
             payload
           ),
         }
       );
+
+    if (response.error) {
+      throw new FortyGuardApiError({
+        message:
+          response.message ??
+          "FortyGuard heatmap submission failed.",
+        code:
+          "FORTYGUARD_SUBMISSION_FAILED",
+        details: response,
+      });
+    }
 
     const activityId =
       response.data?.activity_id;
@@ -146,7 +151,7 @@ export class FortyGuardClient {
     if (!activityId) {
       throw new FortyGuardApiError({
         message:
-          "FortyGuard heatmap submission did not return an activity ID.",
+          "FortyGuard did not return an activity ID.",
         code:
           "FORTYGUARD_INVALID_SUBMISSION_RESPONSE",
         details: response,
@@ -158,11 +163,83 @@ export class FortyGuardClient {
 
   async getStatus(
     activityId: string
-  ): Promise<FortyGuardStatusResponse> {
-    return this.request<FortyGuardStatusResponse>(
-      `/v1/status/${encodeURIComponent(
-        activityId
-      )}`
+  ): Promise<FortyGuardStatusData> {
+    const response =
+      await fetch(
+        `${this.baseUrl}/v1/status/${encodeURIComponent(
+          activityId
+        )}`,
+        {
+          headers: {
+            "api-key":
+              this.apiKey,
+          },
+          cache: "no-store",
+        }
+      );
+
+    /*
+     * FortyGuard documents a short period immediately
+     * after submission where the activity may not yet
+     * be visible. Treat that as pending.
+     */
+    if (response.status === 404) {
+      return {
+        activity_id: activityId,
+        status: "pending",
+      };
+    }
+
+    const text =
+      await response.text();
+
+    let payload: StatusResponse;
+
+    try {
+      payload =
+        JSON.parse(text) as StatusResponse;
+    } catch {
+      throw new FortyGuardApiError({
+        message:
+          "FortyGuard returned an invalid status response.",
+        statusCode:
+          response.status,
+        code:
+          "FORTYGUARD_INVALID_STATUS_RESPONSE",
+        details: text,
+      });
+    }
+
+    if (!response.ok) {
+      throw new FortyGuardApiError({
+        message:
+          `FortyGuard status request failed with HTTP ${response.status}.`,
+        statusCode:
+          response.status,
+        code:
+          response.status === 429
+            ? "FORTYGUARD_RATE_LIMIT"
+            : "FORTYGUARD_STATUS_ERROR",
+        details: payload,
+      });
+    }
+
+    if (payload.error) {
+      throw new FortyGuardApiError({
+        message:
+          payload.message ??
+          "FortyGuard status lookup failed.",
+        code:
+          "FORTYGUARD_STATUS_ERROR",
+        details: payload,
+      });
+    }
+
+    return (
+      payload.data ?? {
+        activity_id: activityId,
+        status: "pending",
+      }
     );
   }
-}
+  }
