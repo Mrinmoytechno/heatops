@@ -176,10 +176,12 @@ export async function POST(
           null,
 
         decisionId:
-          savedDecision?.id ?? null,
+          savedDecision?.id ??
+          null,
 
         modeledMetrics:
-          input.modeledMetrics ?? [],
+          input.modeledMetrics ??
+          [],
 
         status:
           input.status ??
@@ -206,7 +208,10 @@ export async function POST(
       },
     );
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (
+      error instanceof
+      z.ZodError
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -234,10 +239,10 @@ export async function POST(
 
         error:
           "OUTCOME_CREATION_FAILED",
-        },
-        {
-          status: 500,
-        },
+      },
+      {
+        status: 500,
+      },
     );
   }
 }
@@ -381,4 +386,4 @@ export async function GET(
       },
     );
   }
-  }
+          }
