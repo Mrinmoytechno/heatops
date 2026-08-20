@@ -5,6 +5,8 @@ export type OutcomeEvaluationStatus =
   | "insufficient_data";
 
 export type RecommendationEvidence = {
+  id: string;
+
   recommendationId: string | null;
 
   operationId: string | null;
@@ -14,6 +16,10 @@ export type RecommendationEvidence = {
   siteId: string;
 
   outcomeId: string;
+
+  metricKey: string;
+
+  metricLabel: string;
 
   evaluationStatus:
     OutcomeEvaluationStatus;
@@ -31,6 +37,10 @@ export type RecommendationEvidence = {
   evidenceSummary: string;
 
   evaluatedAt: string;
+
+  createdAt: string;
+
+  updatedAt: string;
 };
 
 export type RecommendationEvidenceInput = {
@@ -43,6 +53,8 @@ export type RecommendationEvidenceInput = {
   operationId: string | null;
 
   decisionId: string | null;
+
+  metricKey: string;
 
   modeledValue: number | null;
 
