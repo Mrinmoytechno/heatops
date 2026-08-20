@@ -23,12 +23,9 @@ function determineStatus(
 ): OutcomeEvaluationStatus {
   if (
     modeledValue === null ||
-    actualValue === null
+    actualValue === null ||
+    modeledValue === 0
   ) {
-    return "insufficient_data";
-  }
-
-  if (modeledValue === 0) {
     return "insufficient_data";
   }
 
@@ -81,59 +78,54 @@ function calculateConfidence(
 function createSummary(
   metricLabel: string,
   status: OutcomeEvaluationStatus,
-  modeledValue: number | null,
-  actualValue: number | null,
   variancePercentage: number | null,
 ): string {
   if (
     status === "insufficient_data"
   ) {
-    return `Insufficient data to compare the modeled ${metricLabel} with the recorded outcome.`;
+    return `Insufficient data to evaluate ${metricLabel}.`;
   }
 
   if (
-    modeledValue === null ||
-    actualValue === null ||
     variancePercentage === null
   ) {
     return `Outcome evidence is incomplete for ${metricLabel}.`;
   }
 
   const difference =
-    Math.abs(
-      variancePercentage,
+    round(
+      Math.abs(
+        variancePercentage,
+      ),
     );
 
   if (
     status ===
     "consistent_with_model"
   ) {
-    return `Recorded ${metricLabel} was within ${round(
-      difference,
-    )}% of the modeled result.`;
+    return `Recorded ${metricLabel} was within ${difference}% of the modeled result.`;
   }
 
   if (
     status ===
     "better_than_modeled"
   ) {
-    return `Recorded ${metricLabel} performed ${round(
-      difference,
-    )}% better than the modeled result.`;
+    return `Recorded ${metricLabel} performed ${difference}% better than the modeled result.`;
   }
 
-  return `Recorded ${metricLabel} performed ${round(
-    difference,
-  )}% worse than the modeled result.`;
+  return `Recorded ${metricLabel} performed ${difference}% worse than the modeled result.`;
 }
 
 export function evaluateOutcome(
   input: RecommendationEvidenceInput,
 ): RecommendationEvidence {
+  const now =
+    new Date().toISOString();
+
   const tolerancePercentage =
     input.tolerancePercentage ?? 15;
 
-  const status =
+  const evaluationStatus =
     determineStatus(
       input.modeledValue,
       input.actualValue,
@@ -164,6 +156,9 @@ export function evaluateOutcome(
       : null;
 
   return {
+    id:
+      crypto.randomUUID(),
+
     recommendationId:
       input.recommendationId,
 
@@ -179,8 +174,13 @@ export function evaluateOutcome(
     outcomeId:
       input.outcomeId,
 
-    evaluationStatus:
-      status,
+    metricKey:
+      input.metricKey,
+
+    metricLabel:
+      input.metricLabel,
+
+    evaluationStatus,
 
     modeledValue:
       input.modeledValue,
@@ -201,13 +201,14 @@ export function evaluateOutcome(
     evidenceSummary:
       createSummary(
         input.metricLabel,
-        status,
-        input.modeledValue,
-        input.actualValue,
+        evaluationStatus,
         variancePercentage,
       ),
 
-    evaluatedAt:
-      new Date().toISOString(),
+    evaluatedAt: now,
+
+    createdAt: now,
+
+    updatedAt: now,
   };
-  }
+        }
