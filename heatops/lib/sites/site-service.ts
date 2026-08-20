@@ -1,29 +1,46 @@
 export {
-      createOrganization,
-      } from "./organization-repository";
+  createOrganization,
+  getOrganization,
+  getOrganizationByName,
+} from "./organization-repository";
 
-      export {
-        createSite,
-          getSite,
-            listSites,
-            } from "./site-repository";
+export {
+  getStoredWorkspaceId,
+  setStoredWorkspaceId,
+  clearStoredWorkspaceId,
+  resolveWorkspace,
+} from "./workspace";
 
-            export {
-              createZone,
-                listZones,
-                } from "./zone-repository";
+export {
+  createSite,
+  getSite,
+  listSites,
+  updateSite,
+  deleteSite,
+} from "./site-repository";
 
-                export {
-                  createOperation,
-                    listOperations,
-                    } from "./operation-repository";
+export {
+  getSelectedSiteId,
+  setSelectedSiteId,
+  clearSelectedSiteId,
+} from "./selected-site";
 
-                    export {
-                      createInventoryProfile,
-                        listInventoryProfiles,
-                        } from "./inventory-repository";
+export {
+  createZone,
+  listZones,
+} from "./zone-repository";
 
-                        export {
-                          createWorkforceProfile,
-                            listWorkforceProfiles,
-                            } from "./workforce-repository";
+export {
+  createOperation,
+  listOperations,
+} from "./operation-repository";
+
+export {
+  createInventoryProfile,
+  listInventoryProfiles,
+} from "./inventory-repository";
+
+export {
+  createWorkforceProfile,
+  listWorkforceProfiles,
+} from "./workforce-repository";
