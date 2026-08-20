@@ -5,11 +5,14 @@ export {
 } from "./organization-repository";
 
 export {
+  resolveWorkspace,
+} from "./workspace";
+
+export {
   getStoredWorkspaceId,
   setStoredWorkspaceId,
   clearStoredWorkspaceId,
-  resolveWorkspace,
-} from "./workspace";
+} from "./workspace-storage";
 
 export {
   createSite,
