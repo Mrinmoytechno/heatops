@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import {
   evaluateOutcome,
+  saveRecommendationEvidence,
 } from "@/lib/learning";
 
 const requestSchema = z.object({
@@ -31,6 +32,11 @@ const requestSchema = z.object({
     .uuid()
     .nullable()
     .optional(),
+
+  metricKey: z
+    .string()
+    .min(1)
+    .max(100),
 
   modeledValue: z
     .number()
@@ -63,18 +69,57 @@ export async function POST(
       requestSchema.parse(body);
 
     const evidence =
-      evaluateOutcome(input);
+      evaluateOutcome({
+        siteId:
+          input.siteId,
+
+        outcomeId:
+          input.outcomeId,
+
+        recommendationId:
+          input.recommendationId ??
+          null,
+
+        operationId:
+          input.operationId ??
+          null,
+
+        decisionId:
+          input.decisionId ??
+          null,
+
+        metricKey:
+          input.metricKey,
+
+        modeledValue:
+          input.modeledValue,
+
+        actualValue:
+          input.actualValue,
+
+        metricLabel:
+          input.metricLabel,
+
+        tolerancePercentage:
+          input.tolerancePercentage,
+      });
+
+    const savedEvidence =
+      await saveRecommendationEvidence(
+        evidence,
+      );
 
     return NextResponse.json(
       {
         success: true,
 
         data: {
-          evidence,
+          evidence:
+            savedEvidence,
         },
       },
       {
-        status: 200,
+        status: 201,
       },
     );
   } catch (error) {
@@ -115,4 +160,4 @@ export async function POST(
       },
     );
   }
-      }
+}
