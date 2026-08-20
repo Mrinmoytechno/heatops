@@ -5,7 +5,16 @@ export {
 } from "./evaluate-outcome";
 
 export {
+  saveRecommendationEvidence,
   getEvidenceByOutcomeId,
   getEvidenceByRecommendationId,
-  saveRecommendationEvidence,
 } from "./repository";
+
+export {
+  buildRecommendationPerformanceProfile,
+} from "./performance";
+
+export type {
+  EvidenceStrength,
+  RecommendationPerformanceProfile,
+} from "./performance";
