@@ -12,11 +12,24 @@ import {
   setSelectedSiteId,
 } from "@/lib/sites/selected-site";
 
+import OnboardingLocationStep from "./onboarding-location-step";
+
+import {
+  OnboardingFooter,
+  OnboardingProgress,
+  ReviewRow,
+  WelcomeScreen,
+} from "./onboarding-ui";
+
 type Step =
   | 1
   | 2
   | 3
   | 4;
+
+type Screen =
+  | "welcome"
+  | "setup";
 
 type WorkspaceResponse = {
   success: boolean;
@@ -54,9 +67,7 @@ const initialFormState: SiteFormState = {
   siteType: "warehouse",
   latitude: "",
   longitude: "",
-  timezone:
-    Intl.DateTimeFormat().resolvedOptions().timeZone ||
-    "America/New_York",
+  timezone: "America/New_York",
   operatingStart: "06:00",
   operatingEnd: "18:00",
 };
@@ -81,6 +92,9 @@ const steps = [
 ];
 
 export default function OnboardingFlow() {
+  const [screen, setScreen] =
+    useState<Screen>("welcome");
+
   const [step, setStep] =
     useState<Step>(1);
 
@@ -170,6 +184,23 @@ export default function OnboardingFlow() {
     setError(null);
   }
 
+  function updateLocation(
+    latitude: string,
+    longitude: string,
+    timezone: string,
+  ) {
+    setForm(
+      (current) => ({
+        ...current,
+        latitude,
+        longitude,
+        timezone,
+      }),
+    );
+
+    setError(null);
+  }
+
   function validateCurrentStep(): boolean {
     if (
       step === 1 &&
@@ -194,7 +225,7 @@ export default function OnboardingFlow() {
         form.longitude.trim() === ""
       ) {
         setError(
-          "Enter both latitude and longitude.",
+          "Choose a supported site location before continuing.",
         );
 
         return false;
@@ -206,7 +237,7 @@ export default function OnboardingFlow() {
         latitude > 90
       ) {
         setError(
-          "Latitude must be between -90 and 90.",
+          "Enter a valid latitude.",
         );
 
         return false;
@@ -218,7 +249,7 @@ export default function OnboardingFlow() {
         longitude > 180
       ) {
         setError(
-          "Longitude must be between -180 and 180.",
+          "Enter a valid longitude.",
         );
 
         return false;
@@ -228,7 +259,7 @@ export default function OnboardingFlow() {
         form.timezone.trim().length === 0
       ) {
         setError(
-          "Enter a timezone before continuing.",
+          "A site timezone is required.",
         );
 
         return false;
@@ -242,6 +273,17 @@ export default function OnboardingFlow() {
       ) {
         setError(
           "Enter both operating hours.",
+        );
+
+        return false;
+      }
+
+      if (
+        form.operatingStart ===
+        form.operatingEnd
+      ) {
+        setError(
+          "Operating start and end times cannot be the same.",
         );
 
         return false;
@@ -308,29 +350,22 @@ export default function OnboardingFlow() {
             body: JSON.stringify({
               organizationId:
                 workspaceId,
-
               name:
                 form.name.trim(),
-
               siteType:
                 form.siteType,
-
               latitude:
                 Number(
                   form.latitude,
                 ),
-
               longitude:
                 Number(
                   form.longitude,
                 ),
-
               timezone:
                 form.timezone.trim(),
-
               operatingStart:
                 form.operatingStart,
-
               operatingEnd:
                 form.operatingEnd,
             }),
@@ -382,9 +417,22 @@ export default function OnboardingFlow() {
     );
   }
 
+  if (screen === "welcome") {
+    return (
+      <WelcomeScreen
+        onStartSetup={() =>
+          setScreen("setup")
+        }
+        onStartTour={() =>
+          setScreen("setup")
+        }
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
-      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-3xl flex-col">
+      <div className="mx-auto max-w-3xl">
         <header className="mb-10 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">
@@ -401,72 +449,17 @@ export default function OnboardingFlow() {
           </span>
         </header>
 
-        <div className="mb-10">
-          <div className="mb-3 flex items-center justify-between">
-            {steps.map(
-              (item) => (
-                <div
-                  key={item.number}
-                  className="flex flex-1 flex-col gap-2"
-                >
-                  <div className="flex items-center">
-                    <div
-                      className={[
-                        "flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold",
-                        item.number <= step
-                          ? "bg-orange-500 text-slate-950"
-                          : "bg-slate-800 text-slate-500",
-                      ].join(" ")}
-                    >
-                      {item.number}
-                    </div>
-
-                    {item.number <
-                      steps.length && (
-                      <div
-                        className={[
-                          "h-px flex-1",
-                          item.number < step
-                            ? "bg-orange-500"
-                            : "bg-slate-800",
-                        ].join(" ")}
-                      />
-                    )}
-                  </div>
-
-                  <span
-                    className={[
-                      "text-xs",
-                      item.number === step
-                        ? "text-white"
-                        : "text-slate-500",
-                    ].join(" ")}
-                  >
-                    {item.label}
-                  </span>
-                </div>
-              ),
-            )}
-          </div>
-
-          <div className="h-1 overflow-hidden rounded-full bg-slate-900">
-            <div
-              className="h-full bg-orange-500 transition-all duration-300"
-              style={{
-                width:
-                  `${progress}%`,
-              }}
-            />
-          </div>
-        </div>
+        <OnboardingProgress
+          steps={steps}
+          step={step}
+          progress={progress}
+        />
 
         <form
-          onSubmit={
-            handleSave
-          }
-          className="flex flex-1 flex-col"
+          onSubmit={handleSave}
+          className="mt-10"
         >
-          <section className="flex-1 rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-black/20 sm:p-8">
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-black/20 sm:p-8">
             {step === 1 && (
               <div>
                 <p className="text-sm font-medium text-orange-400">
@@ -478,8 +471,9 @@ export default function OnboardingFlow() {
                 </h2>
 
                 <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400">
-                  Start with one facility. You can add
-                  and manage more sites later.
+                  HeatOps turns upcoming heat conditions
+                  into clear operational signals for your
+                  site.
                 </p>
 
                 <div className="mt-8 space-y-6">
@@ -489,9 +483,7 @@ export default function OnboardingFlow() {
                     </span>
 
                     <input
-                      value={
-                        form.name
-                      }
+                      value={form.name}
                       onChange={(event) =>
                         updateField(
                           "name",
@@ -509,9 +501,7 @@ export default function OnboardingFlow() {
                     </span>
 
                     <select
-                      value={
-                        form.siteType
-                      }
+                      value={form.siteType}
                       onChange={(event) =>
                         updateField(
                           "siteType",
@@ -546,88 +536,15 @@ export default function OnboardingFlow() {
             )}
 
             {step === 2 && (
-              <div>
-                <p className="text-sm font-medium text-orange-400">
-                  Site location
-                </p>
-
-                <h2 className="mt-2 text-2xl font-semibold text-white">
-                  Where is this site located?
-                </h2>
-
-                <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400">
-                  HeatOps uses your exact location to
-                  analyze local thermal conditions.
-                  You can refine this later with place
-                  search and the interactive map.
-                </p>
-
-                <div className="mt-8 grid gap-6 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-slate-200">
-                      Latitude
-                    </span>
-
-                    <input
-                      type="number"
-                      step="any"
-                      value={
-                        form.latitude
-                      }
-                      onChange={(event) =>
-                        updateField(
-                          "latitude",
-                          event.target.value,
-                        )
-                      }
-                      placeholder="32.7767"
-                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-slate-200">
-                      Longitude
-                    </span>
-
-                    <input
-                      type="number"
-                      step="any"
-                      value={
-                        form.longitude
-                      }
-                      onChange={(event) =>
-                        updateField(
-                          "longitude",
-                          event.target.value,
-                        )
-                      }
-                      placeholder="-96.7970"
-                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
-                    />
-                  </label>
-                </div>
-
-                <label className="mt-6 block">
-                  <span className="mb-2 block text-sm font-medium text-slate-200">
-                    Timezone
-                  </span>
-
-                  <input
-                    value={
-                      form.timezone
-                    }
-                    onChange={(event) =>
-                      updateField(
-                        "timezone",
-                        event.target.value,
-                      )
-                    }
-                    placeholder="America/Chicago"
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
-                  />
-                </label>
-              </div>
+              <OnboardingLocationStep
+                latitude={form.latitude}
+                longitude={form.longitude}
+                timezone={form.timezone}
+                onLocationChange={
+                  updateLocation
+                }
+                onError={setError}
+              />
             )}
 
             {step === 3 && (
@@ -641,9 +558,10 @@ export default function OnboardingFlow() {
                 </h2>
 
                 <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400">
-                  HeatOps uses operating hours to focus
-                  analysis on the periods when your
-                  operations are actually exposed.
+                  Set the normal daily operating window.
+                  HeatOps focuses on upcoming conditions
+                  while your operation is scheduled to be
+                  active.
                 </p>
 
                 <div className="mt-8 grid gap-6 sm:grid-cols-2">
@@ -654,9 +572,7 @@ export default function OnboardingFlow() {
 
                     <input
                       type="time"
-                      value={
-                        form.operatingStart
-                      }
+                      value={form.operatingStart}
                       onChange={(event) =>
                         updateField(
                           "operatingStart",
@@ -674,9 +590,7 @@ export default function OnboardingFlow() {
 
                     <input
                       type="time"
-                      value={
-                        form.operatingEnd
-                      }
+                      value={form.operatingEnd}
                       onChange={(event) =>
                         updateField(
                           "operatingEnd",
@@ -687,142 +601,124 @@ export default function OnboardingFlow() {
                     />
                   </label>
                 </div>
+
+                <p className="mt-4 text-xs leading-5 text-slate-500">
+                  Times are stored in HH:MM format and
+                  interpreted using your site&apos;s local
+                  timezone.
+                </p>
               </div>
             )}
 
             {step === 4 && (
               <div>
                 <p className="text-sm font-medium text-orange-400">
-                  Review
+                  Ready
                 </p>
 
                 <h2 className="mt-2 text-2xl font-semibold text-white">
-                  Your site is ready to configure
+                  You&apos;re ready to start monitoring.
                 </h2>
 
                 <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400">
-                  Review the basics. You can edit these
-                  settings later from HeatOps.
+                  HeatOps will use your site location,
+                  local timezone, operating hours, and
+                  upcoming weather conditions to surface
+                  operational heat signals.
                 </p>
 
                 <div className="mt-8 divide-y divide-slate-800 overflow-hidden rounded-xl border border-slate-800">
                   <ReviewRow
                     label="Site name"
-                    value={
-                      form.name
-                    }
+                    value={form.name}
                   />
 
                   <ReviewRow
                     label="Site type"
-                    value={
-                      form.siteType.replace(
-                        /_/g,
-                        " ",
-                      )
-                    }
+                    value={form.siteType.replace(
+                      /_/g,
+                      " ",
+                    )}
                   />
 
                   <ReviewRow
-                    label="Latitude"
-                    value={
-                      form.latitude
-                    }
-                  />
-
-                  <ReviewRow
-                    label="Longitude"
-                    value={
-                      form.longitude
-                    }
+                    label="Location"
+                    value={`${form.latitude}, ${form.longitude}`}
                   />
 
                   <ReviewRow
                     label="Timezone"
-                    value={
-                      form.timezone
-}
-                            />
+                    value={form.timezone}
+                  />
 
-        <ReviewRow
-          label="Operating hours"
-          value={`${form.operatingStart} - ${form.operatingEnd}`}
-        />
+                  <ReviewRow
+                    label="Operating hours"
+                    value={`${form.operatingStart} – ${form.operatingEnd}`}
+                  />
+                </div>
+
+                <p className="mt-6 text-xs leading-5 text-slate-500">
+                  By continuing, you agree to our{" "}
+                  <a
+                    href="/terms"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-orange-400 underline underline-offset-4 hover:text-orange-300"
+                  >
+                    Terms and Conditions
+                  </a>
+                  .
+                </p>
+              </div>
+            )}
+          </section>
+
+          {error && (
+            <div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+          <div className="mt-6 flex items-center justify-between gap-4">
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={
+                step === 1 ||
+                isSaving
+              }
+              className="rounded-xl border border-slate-700 px-5 py-3 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Back
+            </button>
+
+            {step < 4 ? (
+              <button
+                type="button"
+                onClick={goNext}
+                className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+              >
+                Continue
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={
+                  isSaving ||
+                  !workspaceId
+                }
+                className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSaving
+                  ? "Starting..."
+                  : "Start monitoring"}
+              </button>
+            )}
+          </div>
+        </form>
+
+        <OnboardingFooter />
       </div>
-    </div>
-  )}
-</section>
-
-{error && (
-  <div className="mt-5 rounded-xl border border-red-500/10 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-    {error}
-  </div>
-)}
-
-<div className="mt-6 flex items-center justify-between gap-4">
-  <button
-    type="button"
-    onClick={
-      goBack
-    }
-    disabled={
-      step === 1 ||
-      isSaving
-    }
-    className="rounded-xl border border-slate-700 px-5 py-3 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-  >
-    Back
-  </button>
-
-  {step < 4 ? (
-    <button
-      type="button"
-      onClick={
-        goNext
-      }
-      className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
-    >
-      Continue
-    </button>
-  ) : (
-    <button
-      type="submit"
-      disabled={
-        isSaving ||
-        !workspaceId
-      }
-      className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      {isSaving
-        ? "Creating site..."
-        : "Create site"}
-    </button>
-  )}
-</div>
-</form>
-</div>
-</main>
-);
-}
-
-type ReviewRowProps = {
-  label: string;
-  value: string;
-};
-
-function ReviewRow({
-  label,
-  value,
-}: ReviewRowProps) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-slate-400">
-        {label}
-      </span>
-
-      <span className="text-right text-sm font-medium capitalize text-white">
-        {value}
-      </span>
-    </div>
+    </main>
   );
-  }
+      }
