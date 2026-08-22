@@ -207,6 +207,10 @@ function createScenarioItem(
   const scenarioRisk =
     scenarioAnalysis.risk.score;
 
+  const recommendedAction =
+    scenarioAnalysis.decision
+      .recommendedAction;
+
   return {
     ...cloneOperatingPlanItem(
       originalItem,
@@ -223,21 +227,13 @@ function createScenarioItem(
       scenarioRisk,
 
     projectedRiskAfter:
-      scenarioAnalysis.decision
-        .projectedRisk
-        ?.score ?? null,
+      scenarioRisk,
 
     reason:
-      scenarioAnalysis
-        .decision
-        .recommendation
-        .reason,
+      recommendedAction.description,
 
     summary:
-      scenarioAnalysis
-        .decision
-        .recommendation
-        .reason,
+      recommendedAction.description,
   };
 }
 
@@ -274,8 +270,7 @@ function calculateAverageRisk(
   const totalRisk =
     items.reduce(
       (total, item) =>
-        total +
-        item.riskBefore,
+        total + item.riskBefore,
       0,
     );
 

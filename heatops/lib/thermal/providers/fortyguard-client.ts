@@ -1,4 +1,4 @@
- import {
+import {
   getEnvironment,
 } from "@/lib/config/env";
 
@@ -36,8 +36,7 @@ export class FortyGuardClient {
       getEnvironment();
 
     const baseUrl =
-      environment.FORTYGUARD_BASE_URL ||
-      environment.FORTYGUARD_API_BASE_URL;
+      environment.FORTYGUARD_BASE_URL;
 
     if (!baseUrl) {
       throw new FortyGuardApiError({
@@ -242,4 +241,4 @@ export class FortyGuardClient {
       }
     );
   }
-  }
+}

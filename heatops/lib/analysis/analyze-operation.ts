@@ -104,25 +104,9 @@ export async function analyzeOperation(
     calculateRisk({
       impact,
 
-      operation: {
-        scheduledStart:
-          input.operation
-            .scheduledStart,
-
-        scheduledEnd:
-          input.operation
-            .scheduledEnd,
-
-        operationalPriority:
-          input.operation
-            .operationalPriority ??
-          0.5,
-
-        workforceCount:
-          input.operation
-            .workforceCount ??
-          0,
-      },
+      operationalPriority:
+        input.operation
+          .operationalPriority ?? 0.5,
     });
 
   const decision =
@@ -142,13 +126,11 @@ export async function analyzeOperation(
 
         operationalPriority:
           input.operation
-            .operationalPriority ??
-          0.5,
+            .operationalPriority ?? 0.5,
 
         workforceCount:
           input.operation
-            .workforceCount ??
-          0,
+            .workforceCount ?? 0,
       },
 
       thermalForecast,

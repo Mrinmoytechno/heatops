@@ -95,7 +95,7 @@ export class DevelopmentThermalProvider
 
     return {
       siteId:
-        "00000000-0000-0000-0000-000000000000",
+        request.siteId,
 
       observations,
 
@@ -142,6 +142,12 @@ export class DevelopmentThermalProvider
   ): Promise<HeatmapResult> {
     const forecast =
       await this.getForecast({
+        siteId:
+          request.siteId,
+
+        polygonAoi:
+          request.polygonAoi,
+
         latitude:
           request.latitude,
 

@@ -1,4 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+} from "@/lib/supabase/server";
 
 import {
   ManagerDecision,
@@ -126,7 +128,7 @@ export async function saveManagerDecision(
   decision: ManagerDecision,
 ): Promise<ManagerDecision> {
   const supabase =
-    await createClient();
+    await createSupabaseServerClient();
 
   const { data, error } =
     await supabase
@@ -174,7 +176,7 @@ export async function saveOutcome(
   outcome: OutcomeRecord,
 ): Promise<OutcomeRecord> {
   const supabase =
-    await createClient();
+    await createSupabaseServerClient();
 
   const { data, error } =
     await supabase
@@ -231,13 +233,16 @@ export async function getOutcomeById(
   outcomeId: string,
 ): Promise<OutcomeRecord | null> {
   const supabase =
-    await createClient();
+    await createSupabaseServerClient();
 
   const { data, error } =
     await supabase
       .from("outcomes")
       .select("*")
-      .eq("id", outcomeId)
+      .eq(
+        "id",
+        outcomeId,
+      )
       .maybeSingle();
 
   if (error) {
@@ -257,7 +262,7 @@ export async function updateOutcome(
   outcome: OutcomeRecord,
 ): Promise<OutcomeRecord> {
   const supabase =
-    await createClient();
+    await createSupabaseServerClient();
 
   const { data, error } =
     await supabase
@@ -281,7 +286,10 @@ export async function updateOutcome(
         completed_at:
           outcome.completedAt,
       })
-      .eq("id", outcome.id)
+      .eq(
+        "id",
+        outcome.id,
+      )
       .select()
       .single();
 
@@ -292,21 +300,28 @@ export async function updateOutcome(
   return mapOutcomeRow(
     data as OutcomeRow,
   );
-    }
+}
+
 export async function getOutcomesBySiteId(
   siteId: string,
 ): Promise<OutcomeRecord[]> {
   const supabase =
-    await createClient();
+    await createSupabaseServerClient();
 
   const { data, error } =
     await supabase
       .from("outcomes")
       .select("*")
-      .eq("site_id", siteId)
-      .order("created_at", {
-        ascending: false,
-      });
+      .eq(
+        "site_id",
+        siteId,
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        },
+      );
 
   if (error) {
     throw error;
@@ -321,16 +336,22 @@ export async function getOutcomesByDecisionId(
   decisionId: string,
 ): Promise<OutcomeRecord[]> {
   const supabase =
-    await createClient();
+    await createSupabaseServerClient();
 
   const { data, error } =
     await supabase
       .from("outcomes")
       .select("*")
-      .eq("decision_id", decisionId)
-      .order("created_at", {
-        ascending: false,
-      });
+      .eq(
+        "decision_id",
+        decisionId,
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        },
+      );
 
   if (error) {
     throw error;
@@ -339,4 +360,4 @@ export async function getOutcomesByDecisionId(
   return (
     (data ?? []) as OutcomeRow[]
   ).map(mapOutcomeRow);
-    }
+}

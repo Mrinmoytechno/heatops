@@ -22,6 +22,8 @@ export type ForecastRequest = {
 };
 
 export type HeatmapRequest = {
+  siteId: string;
+
   latitude: number;
   longitude: number;
 

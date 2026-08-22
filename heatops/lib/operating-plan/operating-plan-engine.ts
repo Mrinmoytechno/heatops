@@ -1,4 +1,7 @@
-import type { DecisionResult } from "@/lib/decision";
+import type {
+  DecisionRecommendation,
+} from "@/types/decision";
+
 import type {
   HeatAdaptiveOperatingPlan,
   OperatingPlanItem,
@@ -8,36 +11,57 @@ import type {
 
 type CreateOperatingPlanItemInput = {
   siteId: string;
+
   operationId: string;
+
   operationName: string;
+
   zoneName?: string | null;
 
   scheduledStart: string;
+
   scheduledEnd: string;
 
-  decision: DecisionResult;
+  decision: DecisionRecommendation;
 };
 
 type CreateOperatingPlanInput = {
   siteId: string;
+
   analysisTime: string;
+
   operations: CreateOperatingPlanItemInput[];
 };
 
-function getPriority(riskScore: number): OperatingPlanPriority {
-  if (riskScore >= 80) return "critical";
-  if (riskScore >= 60) return "high";
-  if (riskScore >= 40) return "medium";
+function getPriority(
+  riskScore: number,
+): OperatingPlanPriority {
+  if (riskScore >= 80) {
+    return "critical";
+  }
+
+  if (riskScore >= 60) {
+    return "high";
+  }
+
+  if (riskScore >= 40) {
+    return "medium";
+  }
 
   return "low";
 }
 
 function getStatus(
-  decision: DecisionResult,
+  decision: DecisionRecommendation,
   riskScore: number,
 ): OperatingPlanItemStatus {
-  if (decision.recommendation.action === "maintain") {
-    return riskScore >= 40 ? "monitor" : "no_change";
+  if (
+    decision.recommendedAction.actionType ===
+    "maintain"
+  ) {
+    return riskScore >= 40
+      ? "monitor"
+      : "no_change";
   }
 
   if (riskScore >= 80) {
@@ -47,24 +71,36 @@ function getStatus(
   return "recommended";
 }
 
-function getRecommendedSchedule(decision: DecisionResult) {
-  const schedule = decision.recommendation.schedule;
+function getRecommendedSchedule(
+  decision: DecisionRecommendation,
+): {
+  start: string;
+  end: string;
+} | null {
+  const action =
+    decision.recommendedAction;
 
-  if (!schedule) {
+  if (
+    !action.proposedStartTime ||
+    !action.proposedEndTime
+  ) {
     return null;
   }
 
   return {
-    start: schedule.start,
-    end: schedule.end,
+    start: action.proposedStartTime,
+
+    end: action.proposedEndTime,
   };
 }
 
 function getSummary(
   operationName: string,
-  decision: DecisionResult,
+  decision: DecisionRecommendation,
 ): string {
-  switch (decision.recommendation.action) {
+  switch (
+    decision.recommendedAction.actionType
+  ) {
     case "move_earlier":
       return `Move ${operationName} earlier to reduce thermal exposure.`;
 
@@ -86,89 +122,131 @@ function getSummary(
   }
 }
 
-function getReason(decision: DecisionResult): string {
-  return decision.recommendation.reason;
+function getReason(
+  decision: DecisionRecommendation,
+): string {
+  return (
+    decision.reasons[0] ??
+    decision.recommendedAction.description
+  );
 }
 
 export function createOperatingPlan(
   input: CreateOperatingPlanInput,
 ): HeatAdaptiveOperatingPlan {
-  const items: OperatingPlanItem[] = input.operations.map((operation) => {
-    const riskScore = operation.decision.risk.score;
+  const items: OperatingPlanItem[] =
+    input.operations.map(
+      (operation) => {
+        const riskScore =
+          operation.decision.risk.score;
 
-    return {
-      operationId: operation.operationId,
-      operationName: operation.operationName,
-      zoneName: operation.zoneName ?? null,
+        return {
+          operationId:
+            operation.operationId,
 
-      priority: getPriority(riskScore),
+          operationName:
+            operation.operationName,
 
-      status: getStatus(
-        operation.decision,
-        riskScore,
-      ),
+          zoneName:
+            operation.zoneName ?? null,
 
-      currentSchedule: {
-        start: operation.scheduledStart,
-        end: operation.scheduledEnd,
+          priority:
+            getPriority(riskScore),
+
+          status: getStatus(
+            operation.decision,
+            riskScore,
+          ),
+
+          currentSchedule: {
+            start:
+              operation.scheduledStart,
+
+            end:
+              operation.scheduledEnd,
+          },
+
+          recommendedSchedule:
+            getRecommendedSchedule(
+              operation.decision,
+            ),
+
+          decision:
+            operation.decision,
+
+          summary: getSummary(
+            operation.operationName,
+            operation.decision,
+          ),
+
+          reason: getReason(
+            operation.decision,
+          ),
+
+          riskBefore: riskScore,
+
+          projectedRiskAfter: null,
+
+          createdAt:
+            new Date().toISOString(),
+        };
       },
+    );
 
-      recommendedSchedule: getRecommendedSchedule(
-        operation.decision,
-      ),
+  const actionsRequired =
+    items.filter(
+      (item) =>
+        item.status ===
+        "action_required",
+    ).length;
 
-      decision: operation.decision,
+  const recommendations =
+    items.filter(
+      (item) =>
+        item.status ===
+        "recommended",
+    ).length;
 
-      summary: getSummary(
-        operation.operationName,
-        operation.decision,
-      ),
+  const monitoringItems =
+    items.filter(
+      (item) =>
+        item.status ===
+        "monitor",
+    ).length;
 
-      reason: getReason(operation.decision),
-
-      riskBefore: riskScore,
-
-      projectedRiskAfter:
-        operation.decision.projectedRisk?.score ?? null,
-
-      createdAt: new Date().toISOString(),
-    };
-  });
-
-  const actionsRequired = items.filter(
-    (item) => item.status === "action_required",
-  ).length;
-
-  const recommendations = items.filter(
-    (item) => item.status === "recommended",
-  ).length;
-
-  const monitoringItems = items.filter(
-    (item) => item.status === "monitor",
-  ).length;
-
-  const totalActions = actionsRequired + recommendations;
+  const totalActions =
+    actionsRequired + recommendations;
 
   return {
     siteId: input.siteId,
-    analysisTime: input.analysisTime,
 
-    title: "Heat-Adapted Operating Plan",
+    analysisTime:
+      input.analysisTime,
+
+    title:
+      "Heat-Adapted Operating Plan",
 
     summary:
       totalActions > 0
         ? `${totalActions} operational ${
-            totalActions === 1 ? "change is" : "changes are"
+            totalActions === 1
+              ? "change is"
+              : "changes are"
           } recommended based on the analyzed thermal conditions.`
         : "No immediate operational changes are recommended for the analyzed conditions.",
 
     items,
 
-    totalOperationsAnalyzed: items.length,
+    totalOperationsAnalyzed:
+      items.length,
+
     actionsRequired,
+
     recommendations,
+
     monitoringItems,
 
-    generatedAt: new Date().toISOString(),
+    generatedAt:
+      new Date().toISOString(),
   };
 }

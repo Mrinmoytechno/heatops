@@ -1,4 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+} from "@/lib/supabase/server";
 
 import type {
   RecommendationEvidence,
@@ -126,7 +128,7 @@ export async function saveRecommendationEvidence(
   evidence: RecommendationEvidence,
 ): Promise<RecommendationEvidence> {
   const supabase =
-    await createClient();
+    await createSupabaseServerClient();
 
   const { data, error } =
     await supabase
@@ -201,7 +203,7 @@ export async function getEvidenceByOutcomeId(
   outcomeId: string,
 ): Promise<RecommendationEvidence[]> {
   const supabase =
-    await createClient();
+    await createSupabaseServerClient();
 
   const { data, error } =
     await supabase
@@ -231,7 +233,7 @@ export async function getEvidenceByRecommendationId(
   recommendationId: string,
 ): Promise<RecommendationEvidence[]> {
   const supabase =
-    await createClient();
+    await createSupabaseServerClient();
 
   const { data, error } =
     await supabase
@@ -255,4 +257,4 @@ export async function getEvidenceByRecommendationId(
   return (
     (data ?? []) as RecommendationEvidenceRow[]
   ).map(mapRow);
-  }
+}

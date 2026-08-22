@@ -9,6 +9,10 @@ import {
   runSimulation,
 } from "@/lib/simulation";
 
+import type {
+  ScenarioInput,
+} from "@/lib/simulation";
+
 import {
   generateSimulationNotification,
 } from "@/lib/notifications";
@@ -206,16 +210,81 @@ const operationAnalysisInputSchema =
         .optional(),
   });
 
-const decisionSchema = z
-  .object({
-    recommendation: z.unknown(),
+const actionTypeSchema = z.enum([
+  "maintain",
+  "move_earlier",
+  "move_later",
+  "split_operation",
+  "prioritize",
+  "reduce_exposure",
+]);
 
-    projectedRisk: z
-      .unknown()
-      .nullable()
-      .optional(),
-  })
-  .passthrough();
+const candidateDecisionSchema = z.object({
+  actionType: actionTypeSchema,
+
+  label: z.string(),
+
+  description: z.string(),
+
+  proposedStartTime: z
+    .string()
+    .nullable(),
+
+  proposedEndTime: z
+    .string()
+    .nullable(),
+
+  tradeOff: z.object({
+    riskScore: z.number(),
+
+    disruptionScore:
+      z.number(),
+
+    modeledCost:
+      z.number(),
+
+    overallScore:
+      z.number(),
+  }),
+
+  reasons:
+    z.array(z.string()),
+});
+
+const decisionSchema = z.object({
+  operationId:
+    z.string()
+    .uuid(),
+
+  zoneId: z
+    .string()
+    .uuid()
+    .nullable(),
+
+  priority: z.enum([
+    "low",
+    "medium",
+    "high",
+    "critical",
+  ]),
+
+  recommendedAction:
+    candidateDecisionSchema,
+
+  alternatives: z.array(
+    candidateDecisionSchema,
+  ),
+
+  impact: z.unknown(),
+
+  risk: z.unknown(),
+
+  reasons:
+    z.array(z.string()),
+
+  assumptions:
+    z.array(z.string()),
+});
 
 const operatingPlanItemSchema =
   z.object({
@@ -497,9 +566,9 @@ export async function POST(
     }
 
     const simulation =
-      await runSimulation(
-        validatedInput,
-      );
+  await runSimulation(
+    validatedInput as ScenarioInput,
+  );
 
     const notificationResult =
       generateSimulationNotification({
@@ -543,7 +612,7 @@ export async function POST(
       },
     );
   } catch (error) {
-   if (
+    if (
       error instanceof
       z.ZodError
     ) {
@@ -578,6 +647,6 @@ export async function POST(
       {
         status: 500,
       },
-    );
+      );
   }
-            }
+}
