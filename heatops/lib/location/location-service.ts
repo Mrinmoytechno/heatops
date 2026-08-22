@@ -7,6 +7,10 @@ import {
   getLocationProvider,
 } from "./location-provider";
 
+import {
+  initializeLocationProvider,
+} from "./location-provider-registry";
+
 export async function searchLocations(
   query: string,
   limit = 5,
@@ -19,6 +23,8 @@ export async function searchLocations(
   ) {
     return [];
   }
+
+  initializeLocationProvider();
 
   const provider =
     getLocationProvider();
@@ -60,6 +66,8 @@ export async function resolveTimezone(
     );
   }
 
+  initializeLocationProvider();
+
   const provider =
     getLocationProvider();
 
@@ -67,4 +75,4 @@ export async function resolveTimezone(
     latitude,
     longitude,
   );
-}
+  }
